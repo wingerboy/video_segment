@@ -37,10 +37,10 @@ const Home = () => {
           <Grid container spacing={4} alignItems="center">
             <Grid item xs={12} md={6}>
               <Typography variant="h2" component="h1" gutterBottom>
-                Video Segmentation
+                视频分割
               </Typography>
               <Typography variant="h5" component="div" sx={{ mb: 4 }}>
-                Extract video foreground and apply custom backgrounds in just a few clicks.
+                只需几步，即可提取视频前景并应用自定义背景。
               </Typography>
               <Box sx={{ display: 'flex', gap: 2 }}>
                 <Button
@@ -50,7 +50,7 @@ const Home = () => {
                   color="secondary"
                   size="large"
                 >
-                  Get Started
+                  开始使用
                 </Button>
                 <Button
                   component={Link}
@@ -59,7 +59,7 @@ const Home = () => {
                   color="inherit"
                   size="large"
                 >
-                  Login
+                  登录
                 </Button>
               </Box>
             </Grid>
@@ -84,7 +84,7 @@ const Home = () => {
                   <Box
                     component="img"
                     src="https://images.unsplash.com/photo-1536240478700-b869070f9279?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60"
-                    alt="Video editing"
+                    alt="视频编辑"
                     sx={{
                       width: '100%',
                       height: 'auto',
@@ -105,7 +105,7 @@ const Home = () => {
           textAlign="center"
           gutterBottom
         >
-          Features
+          功能特点
         </Typography>
         <Typography
           variant="h6"
@@ -113,7 +113,7 @@ const Home = () => {
           color="text.secondary"
           sx={{ mb: 6 }}
         >
-          Powerful video segmentation tools made simple
+          简单易用的强大视频分割工具
         </Typography>
 
         <Grid container spacing={4}>
@@ -125,10 +125,10 @@ const Home = () => {
               </Box>
               <CardContent sx={{ flexGrow: 1 }}>
                 <Typography variant="h5" component="div" gutterBottom textAlign="center">
-                  Video Foreground Extraction
+                  视频前景提取
                 </Typography>
                 <Typography variant="body1" color="text.secondary">
-                  Our advanced AI technology automatically extracts the foreground subject from your videos with high precision, preserving fine details like hair and transparent objects.
+                  我们的高级AI技术可以自动从视频中提取前景主体，保持高精度，并保留头发和透明物体等精细细节。
                 </Typography>
               </CardContent>
             </Card>
@@ -142,10 +142,10 @@ const Home = () => {
               </Box>
               <CardContent sx={{ flexGrow: 1 }}>
                 <Typography variant="h5" component="div" gutterBottom textAlign="center">
-                  Custom Backgrounds
+                  自定义背景
                 </Typography>
                 <Typography variant="body1" color="text.secondary">
-                  Replace your video background with any image of your choice. Create professional-looking videos for presentations, social media, or personal projects with just a few clicks.
+                  用您选择的任何图像替换视频背景。只需点击几下，即可为演示文稿、社交媒体或个人项目创建专业外观的视频。
                 </Typography>
               </CardContent>
             </Card>
@@ -159,10 +159,10 @@ const Home = () => {
               </Box>
               <CardContent sx={{ flexGrow: 1 }}>
                 <Typography variant="h5" component="div" gutterBottom textAlign="center">
-                  Fast Processing
+                  快速处理
                 </Typography>
                 <Typography variant="body1" color="text.secondary">
-                  Our optimized cloud-based processing ensures your videos are processed quickly while maintaining high quality results, saving you time and effort.
+                  我们优化的云端处理确保您的视频能够快速处理，同时保持高质量结果，节省您的时间和精力。
                 </Typography>
               </CardContent>
             </Card>
@@ -179,7 +179,7 @@ const Home = () => {
             textAlign="center"
             gutterBottom
           >
-            How It Works
+            工作原理
           </Typography>
           <Typography
             variant="h6"
@@ -187,7 +187,7 @@ const Home = () => {
             color="text.secondary"
             sx={{ mb: 6 }}
           >
-            Three simple steps to transform your videos
+            三个简单步骤转换您的视频
           </Typography>
 
           <Grid container spacing={4}>
@@ -205,10 +205,10 @@ const Home = () => {
               >
                 <CloudUpload sx={{ fontSize: 50, color: 'primary.main', mb: 2 }} />
                 <Typography variant="h5" component="h3" gutterBottom>
-                  1. Upload Video
+                  1. 上传视频
                 </Typography>
                 <Typography variant="body1" color="text.secondary">
-                  Upload your video file to our secure platform. We support various video formats including MP4, MOV, and AVI.
+                  将您的视频文件上传到我们的安全平台。我们支持各种视频格式，包括MP4、MOV和AVI。
                 </Typography>
               </Paper>
             </Grid>
@@ -227,10 +227,10 @@ const Home = () => {
               >
                 <Movie sx={{ fontSize: 50, color: 'primary.main', mb: 2 }} />
                 <Typography variant="h5" component="h3" gutterBottom>
-                  2. Extract Foreground
+                  2. 提取前景
                 </Typography>
                 <Typography variant="body1" color="text.secondary">
-                  Our AI automatically processes your video to separate the foreground subject from the background with precision.
+                  我们的AI会自动处理您的视频，精确地将前景主体与背景分离。
                 </Typography>
               </Paper>
             </Grid>
@@ -249,10 +249,10 @@ const Home = () => {
               >
                 <PhotoLibrary sx={{ fontSize: 50, color: 'primary.main', mb: 2 }} />
                 <Typography variant="h5" component="h3" gutterBottom>
-                  3. Apply Custom Background
+                  3. 应用自定义背景
                 </Typography>
                 <Typography variant="body1" color="text.secondary">
-                  Choose a new background image and our system will merge it with your video foreground to create the final result.
+                  选择一个新的背景图像，我们的系统将它与您的视频前景合并以创建最终结果。
                 </Typography>
               </Paper>
             </Grid>
@@ -266,7 +266,7 @@ const Home = () => {
               color="primary"
               size="large"
             >
-              Try It Now
+              立即试用
             </Button>
           </Box>
         </Container>
@@ -276,7 +276,7 @@ const Home = () => {
       <Box sx={{ bgcolor: 'background.paper', py: 6, borderTop: 1, borderColor: 'divider' }}>
         <Container maxWidth="lg">
           <Typography variant="body2" color="text.secondary" align="center">
-            &copy; {new Date().getFullYear()} Video Segmentation. All rights reserved.
+            &copy; {new Date().getFullYear()} 视频分割。保留所有权利。
           </Typography>
         </Container>
       </Box>

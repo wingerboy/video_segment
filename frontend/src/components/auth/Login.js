@@ -17,10 +17,10 @@ import { AuthContext } from '../../contexts/AuthContext';
 // Validation schema
 const LoginSchema = Yup.object().shape({
   email: Yup.string()
-    .email('Invalid email')
-    .required('Email is required'),
+    .email('邮箱格式无效')
+    .required('请输入邮箱'),
   password: Yup.string()
-    .required('Password is required')
+    .required('请输入密码')
 });
 
 const Login = () => {
@@ -34,7 +34,7 @@ const Login = () => {
       await login(values.email, values.password);
       navigate('/dashboard');
     } catch (error) {
-      setStatus({ error: error.response?.data?.message || 'Login failed' });
+      setStatus({ error: error.response?.data?.message || '登录失败' });
     } finally {
       setSubmitting(false);
       setLoading(false);
@@ -46,7 +46,7 @@ const Login = () => {
       <Box sx={{ mt: 8, mb: 4 }}>
         <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
           <Typography variant="h4" component="h1" gutterBottom align="center">
-            Login
+            登录
           </Typography>
           
           <Formik
@@ -65,7 +65,7 @@ const Login = () => {
                 <Field
                   as={TextField}
                   name="email"
-                  label="Email"
+                  label="邮箱"
                   fullWidth
                   margin="normal"
                   error={touched.email && Boolean(errors.email)}
@@ -75,7 +75,7 @@ const Login = () => {
                 <Field
                   as={TextField}
                   name="password"
-                  label="Password"
+                  label="密码"
                   type="password"
                   fullWidth
                   margin="normal"
@@ -92,14 +92,14 @@ const Login = () => {
                   disabled={isSubmitting || loading}
                   sx={{ mt: 3, mb: 2 }}
                 >
-                  {loading ? <CircularProgress size={24} /> : 'Login'}
+                  {loading ? <CircularProgress size={24} /> : '登录'}
                 </Button>
                 
                 <Box sx={{ textAlign: 'center', mt: 2 }}>
                   <Typography variant="body2">
-                    Don't have an account?{' '}
+                    还没有账号？{' '}
                     <Link to="/register" style={{ textDecoration: 'none' }}>
-                      Register
+                      注册
                     </Link>
                   </Typography>
                 </Box>

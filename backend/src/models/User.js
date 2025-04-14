@@ -27,7 +27,35 @@ const User = sequelize.define('User', {
       len: [6, 100]
     }
   },
+  role: {
+    type: DataTypes.ENUM('user', 'agent', 'admin'),
+    defaultValue: 'user',
+    allowNull: false,
+    comment: '用户角色：普通用户、代理、管理员'
+  },
+  balance: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0.00,
+    comment: '账户余额'
+  },
+  rechargeAmount: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0.00,
+    comment: '总充值金额'
+  },
+  consumeAmount: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0.00,
+    comment: '总消费金额'
+  },
   createdAt: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
+  },
+  updatedAt: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
   }
@@ -48,6 +76,7 @@ const User = sequelize.define('User', {
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(user.password, salt);
       }
+      user.updatedAt = new Date();
     }
   }
 });

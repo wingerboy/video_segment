@@ -63,7 +63,7 @@ npm install
 
 # 创建.env文件并添加您的配置
 # 示例:
-# PORT=5000
+# PORT=5001
 # DB_HOST=obmt6n863p9o68gw-mi.aliyun-cn-hangzhou-internet.oceanbase.cloud
 # DB_PORT=3306
 # DB_USER=wingerboy

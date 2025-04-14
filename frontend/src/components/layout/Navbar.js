@@ -46,7 +46,7 @@ const Navbar = () => {
               to="/"
               sx={{ textDecoration: 'none', color: 'inherit' }}
             >
-              Video Segmentation
+              视频分割
             </Typography>
           </Box>
 
@@ -58,7 +58,7 @@ const Navbar = () => {
                 to="/dashboard"
                 sx={{ mx: 1 }}
               >
-                Dashboard
+                仪表盘
               </Button>
               <Button 
                 color="inherit" 
@@ -66,7 +66,7 @@ const Navbar = () => {
                 to="/upload"
                 sx={{ mx: 1 }}
               >
-                Upload Video
+                视频分割
               </Button>
               <IconButton
                 size="large"
@@ -96,18 +96,18 @@ const Navbar = () => {
                 onClose={handleClose}
               >
                 <MenuItem component={Link} to="/profile" onClick={handleClose}>
-                  Profile
+                  个人资料
                 </MenuItem>
-                <MenuItem onClick={handleLogout}>Logout</MenuItem>
+                <MenuItem onClick={handleLogout}>退出登录</MenuItem>
               </Menu>
             </>
           ) : (
             <>
               <Button color="inherit" component={Link} to="/login">
-                Login
+                登录
               </Button>
               <Button color="inherit" component={Link} to="/register">
-                Register
+                注册
               </Button>
             </>
           )}

@@ -1,7 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
-const auth = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
 const router = express.Router();
@@ -98,7 +98,7 @@ router.post('/login', async (req, res) => {
 });
 
 // Get current user profile
-router.get('/me', auth, async (req, res) => {
+router.get('/me', authenticate, async (req, res) => {
   try {
     res.status(200).json({
       user: {

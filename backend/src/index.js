@@ -3,6 +3,9 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const authRoutes = require('./routes/auth');
 const videoRoutes = require('./routes/video');
+const backgroundRoutes = require('./routes/backgrounds');
+const taskRoutes = require('./routes/tasks');
+const accountRoutes = require('./routes/account');
 const path = require('path');
 
 // Load environment variables
@@ -12,7 +15,7 @@ dotenv.config();
 require('./models');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // CORS配置
 const corsOptions = {
@@ -49,6 +52,9 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/videos', videoRoutes);
+app.use('/api/backgrounds', backgroundRoutes);
+app.use('/api/tasks', taskRoutes);
+app.use('/api/account', accountRoutes);
 
 // Default route
 app.get('/', (req, res) => {

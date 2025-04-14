@@ -33,6 +33,13 @@ const statusColors = {
   failed: 'error'
 };
 
+const statusTranslations = {
+  pending: '待处理',
+  processing: '处理中',
+  completed: '已完成',
+  failed: '失败'
+};
+
 const VideoDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -85,7 +92,7 @@ const VideoDetail = () => {
         clearInterval(pollingTimer);
       }
     } catch (error) {
-      setError('Failed to load video details. Please try again.');
+      setError('加载视频详情失败。请重试。');
       console.error('Error fetching video details:', error);
     } finally {
       if (showLoading) {
@@ -112,7 +119,7 @@ const VideoDetail = () => {
       // Start polling for status updates
       startPolling();
     } catch (error) {
-      setError('Failed to upload background image. Please try again.');
+      setError('上传背景图片失败。请重试。');
       console.error('Error uploading background:', error);
     } finally {
       setUploadingBackground(false);
@@ -121,12 +128,12 @@ const VideoDetail = () => {
   
   // Handle video deletion
   const handleDelete = async () => {
-    if (window.confirm('Are you sure you want to delete this video? This action cannot be undone.')) {
+    if (window.confirm('您确定要删除此视频吗？此操作无法撤销。')) {
       try {
         await deleteVideo(id);
         navigate('/dashboard');
       } catch (error) {
-        setError('Failed to delete video. Please try again.');
+        setError('删除视频失败。请重试。');
         console.error('Error deleting video:', error);
       }
     }
@@ -135,7 +142,7 @@ const VideoDetail = () => {
   // Format date
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-    return new Date(dateString).toLocaleDateString(undefined, options);
+    return new Date(dateString).toLocaleDateString('zh-CN', options);
   };
   
   if (loading) {
@@ -150,14 +157,14 @@ const VideoDetail = () => {
     return (
       <Container maxWidth="md">
         <Box sx={{ mt: 4 }}>
-          <Alert severity="error">Video not found or has been deleted.</Alert>
+          <Alert severity="error">未找到视频或视频已被删除。</Alert>
           <Button 
             variant="contained" 
             onClick={() => navigate('/dashboard')} 
             startIcon={<ArrowBack />}
             sx={{ mt: 2 }}
           >
-            Back to Dashboard
+            返回仪表盘
           </Button>
         </Box>
       </Container>
@@ -174,13 +181,13 @@ const VideoDetail = () => {
             startIcon={<ArrowBack />}
             sx={{ mr: 2 }}
           >
-            Back
+            返回
           </Button>
           <Typography variant="h4" component="h1">
-            Video Details
+            视频详情
           </Typography>
           <Chip 
-            label={video.status.charAt(0).toUpperCase() + video.status.slice(1)}
+            label={statusTranslations[video.status] || video.status}
             color={statusColors[video.status] || 'default'}
             sx={{ ml: 2 }}
           />
@@ -198,10 +205,10 @@ const VideoDetail = () => {
             <Box sx={{ mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1, textAlign: 'center' }}>
               <CircularProgress size={30} sx={{ mb: 1 }} />
               <Typography variant="body1">
-                {video.status === 'pending' ? 'Waiting for processing...' : 'Processing your video...'}
+                {video.status === 'pending' ? '等待处理中...' : '正在处理您的视频...'}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                This may take a few minutes. The page will automatically update.
+                这可能需要几分钟。页面将自动更新。
               </Typography>
             </Box>
           )}
@@ -209,7 +216,7 @@ const VideoDetail = () => {
           {/* Error status */}
           {video.status === 'failed' && (
             <Alert severity="error" sx={{ mb: 3 }}>
-              Processing failed. Please try uploading your video again.
+              处理失败。请重新上传您的视频。
             </Alert>
           )}
           
@@ -217,7 +224,7 @@ const VideoDetail = () => {
             {/* Video display */}
             <Grid item xs={12} md={7}>
               <Typography variant="h6" gutterBottom>
-                {video.finalVideo ? 'Final Video with Custom Background' : 'Original Video'}
+                {video.finalVideo ? '应用自定义背景的最终视频' : '原始视频'}
               </Typography>
               
               <Card sx={{ mb: 2 }}>
@@ -225,7 +232,7 @@ const VideoDetail = () => {
                   component="video"
                   controls
                   sx={{ width: '100%', maxHeight: '400px' }}
-                  src={`http://localhost:5000/${video.finalVideo || video.originalVideo}`}
+                  src={`http://localhost:5001/${video.finalVideo || video.originalVideo}`}
                 />
               </Card>
               
@@ -234,11 +241,11 @@ const VideoDetail = () => {
                   variant="contained"
                   color="primary"
                   startIcon={<CloudDownload />}
-                  href={`http://localhost:5000/${video.finalVideo || video.originalVideo}`}
+                  href={`http://localhost:5001/${video.finalVideo || video.originalVideo}`}
                   download
                   disabled={!video.finalVideo && !video.originalVideo}
                 >
-                  Download Video
+                  下载视频
                 </Button>
                 
                 <Button
@@ -247,7 +254,7 @@ const VideoDetail = () => {
                   startIcon={<Delete />}
                   onClick={handleDelete}
                 >
-                  Delete
+                  删除
                 </Button>
               </Box>
             </Grid>
@@ -255,16 +262,16 @@ const VideoDetail = () => {
             {/* Video info and background upload */}
             <Grid item xs={12} md={5}>
               <Typography variant="h6" gutterBottom>
-                Video Information
+                视频信息
               </Typography>
               
               <Box sx={{ mb: 3 }}>
                 <Typography variant="body2" color="text.secondary">
-                  Uploaded on {formatDate(video.createdAt)}
+                  上传于 {formatDate(video.createdAt)}
                 </Typography>
                 {video.updatedAt && video.updatedAt !== video.createdAt && (
                   <Typography variant="body2" color="text.secondary">
-                    Last updated: {formatDate(video.updatedAt)}
+                    最后更新: {formatDate(video.updatedAt)}
                   </Typography>
                 )}
               </Box>
@@ -274,12 +281,12 @@ const VideoDetail = () => {
               {/* Processing Status */}
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle1" gutterBottom>
-                  Processing Steps:
+                  处理步骤:
                 </Typography>
                 
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                   <CheckCircleOutline color="success" sx={{ mr: 1 }} />
-                  <Typography variant="body2">Original video uploaded</Typography>
+                  <Typography variant="body2">原始视频已上传</Typography>
                 </Box>
                 
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -291,7 +298,7 @@ const VideoDetail = () => {
                     <CheckCircleOutline color="disabled" sx={{ mr: 1 }} />
                   )}
                   <Typography variant="body2">
-                    Foreground extraction {video.extractedForeground ? 'completed' : video.status === 'processing' ? 'in progress' : 'pending'}
+                    前景提取 {video.extractedForeground ? '已完成' : video.status === 'processing' ? '进行中' : '待处理'}
                   </Typography>
                 </Box>
                 
@@ -304,7 +311,7 @@ const VideoDetail = () => {
                     <CheckCircleOutline color="disabled" sx={{ mr: 1 }} />
                   )}
                   <Typography variant="body2">
-                    Background replacement {video.finalVideo ? 'completed' : (video.backgroundImage && video.status === 'processing') ? 'in progress' : 'pending'}
+                    背景替换 {video.finalVideo ? '已完成' : (video.backgroundImage && video.status === 'processing') ? '进行中' : '待处理'}
                   </Typography>
                 </Box>
               </Box>
@@ -314,7 +321,7 @@ const VideoDetail = () => {
               {/* Background Image Upload */}
               <Box>
                 <Typography variant="subtitle1" gutterBottom>
-                  Custom Background
+                  自定义背景
                 </Typography>
                 
                 {video.backgroundImage ? (
@@ -323,8 +330,8 @@ const VideoDetail = () => {
                       <CardMedia
                         component="img"
                         sx={{ height: '200px', objectFit: 'contain' }}
-                        image={`http://localhost:5000/${video.backgroundImage}`}
-                        alt="Background image"
+                        image={`http://localhost:5001/${video.backgroundImage}`}
+                        alt="背景图片"
                       />
                     </Card>
                     <Button
@@ -334,13 +341,13 @@ const VideoDetail = () => {
                       disabled={uploadingBackground || video.status === 'processing'}
                       fullWidth
                     >
-                      Change Background
+                      更换背景
                     </Button>
                   </Box>
                 ) : (
                   <Box sx={{ textAlign: 'center' }}>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      No background image uploaded yet. Upload an image to replace the video background.
+                      尚未上传背景图片。上传图片来替换视频背景。
                     </Typography>
                     <Button
                       variant="outlined"
@@ -349,11 +356,11 @@ const VideoDetail = () => {
                       disabled={uploadingBackground || video.status === 'processing' || !video.extractedForeground}
                       fullWidth
                     >
-                      {uploadingBackground ? <CircularProgress size={24} /> : 'Upload Background Image'}
+                      {uploadingBackground ? <CircularProgress size={24} /> : '上传背景图片'}
                     </Button>
                     {!video.extractedForeground && (
                       <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                        Wait for foreground extraction to complete before uploading a background.
+                        请等待前景提取完成后再上传背景。
                       </Typography>
                     )}
                   </Box>
