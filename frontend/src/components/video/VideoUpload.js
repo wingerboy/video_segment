@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useContext, use } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -29,26 +29,36 @@ import {
   Divider
 } from '@mui/material';
 import { CloudUpload, Wallpaper } from '@mui/icons-material';
-import { uploadVideo, uploadBackgroundImage, startVideoSegmentation, createTask, getAllBackgrounds, getAllVideos } from '../../services/videoService';
+import { uploadVideo, uploadBackgroundImage, startVideoSegmentation, createTask, createTaskV2, getAllBackgrounds, getAllVideos } from '../../services/videoService';
+import { API_BASE_URL } from '../../config';
+// 在组件顶部导入 hook
+import { useScrollToError } from '../../hooks/useScrollToError';
+
+
+import { AuthContext } from '../../contexts/AuthContext';
 
 // 可用的分割模型
 const segmentationModels = [
-  { id: 'model1', name: '高精度模型（慢）', description: '准确度高，适合精细分割，处理时间较长' },
-  { id: 'model2', name: '标准模型（推荐）', description: '准确度和速度的平衡选择，适合大多数视频' },
-  { id: 'model3', name: '快速模型（快）', description: '处理速度快，精度较低，适合简单场景' }
+  { id: 'slow', name: '高精度模型（慢）', description: '准确度高，适合精细分割，处理时间较长' },
+  { id: 'normal', name: '标准模型（推荐）', description: '准确度和速度的平衡选择，适合大多数视频' },
+  { id: 'quick', name: '快速模型（快）', description: '处理速度快，精度较低，适合简单场景' }
 ];
 
+
+// 在组件内部使用
 const VideoUpload = () => {
-  const [selectedVideo, setSelectedVideo] = useState(null);
-  const [selectedBackground, setSelectedBackground] = useState(null);
+  const { currentUser } = useContext(AuthContext);
+  const [selectedVideo, setSelectedVideo] = useState();
+  const [selectedBackground, setSelectedBackground] = useState();
   const [videoPreview, setVideoPreview] = useState('');
   const [backgroundPreview, setBackgroundPreview] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [videoId, setVideoId] = useState(null);
+  const [videoId, setVideoId] = useState();
+  const [bgId, setBGid] = useState();
   const [applyBackground, setApplyBackground] = useState(true);
-  const [videoInfo, setVideoInfo] = useState(null);
-  const [selectedModel, setSelectedModel] = useState('model2');
+  const [videoInfo, setVideoInfo] = useState();
+  const [selectedModel, setSelectedModel] = useState('normal');
   const [taskCreated, setTaskCreated] = useState(false);
   const [backgrounds, setBackgrounds] = useState([]);
   const [videos, setVideos] = useState([]);
@@ -56,7 +66,8 @@ const VideoUpload = () => {
   const [videosLoading, setVideosLoading] = useState(false);
   const [showBackgroundDialog, setShowBackgroundDialog] = useState(false);
   const [showVideoDialog, setShowVideoDialog] = useState(false);
-  
+
+  const errorRef = useScrollToError(error)
   const videoInputRef = useRef(null);
   const backgroundInputRef = useRef(null);
   const videoRef = useRef(null);
@@ -86,12 +97,35 @@ const VideoUpload = () => {
   }, [videoPreview, selectedVideo]);
 
   // 处理视频文件选择
-  const handleVideoChange = (event) => {
+  const handleVideoChange = async (event) => {
     const file = event.target.files[0];
-    if (file) {
+    if (!file) return;
+
+    try {
+
       setSelectedVideo(file);
       setVideoPreview(URL.createObjectURL(file));
       setVideoId(null); // 清除之前的视频ID
+
+      // setUploadingVideo(true);
+      // setUploadProgress(0);
+      // setError('');
+
+      // 如果没有设置名称，则使用文件名
+      const name = file.name;
+
+      // 使用修改后的uploadVideo函数，传入名称和进度回调
+      await uploadVideo(file, name);
+
+      // await fetchVideos();
+      // setVideoName('');
+      // setShowVideoUploadForm(false);
+      // setUploadProgress(0);
+    } catch (error) {
+      // setError('上传视频失败。请重试。');
+      console.error('新增任务-上传视频错误:', error);
+    } finally {
+      // setUploadingVideo(false);
     }
   };
 
@@ -99,6 +133,7 @@ const VideoUpload = () => {
   const handleBackgroundChange = (event) => {
     const file = event.target.files[0];
     if (file) {
+      setBGid(undefined)
       setSelectedBackground(file);
       setBackgroundPreview(URL.createObjectURL(file));
     }
@@ -114,32 +149,48 @@ const VideoUpload = () => {
     try {
       setLoading(true);
       setError('');
-      
-      let currentVideoId = videoId;
-      
+
+      // let currentVideoId = videoId;
+
       // 如果是新上传的视频，则先上传
-      if (selectedVideo && !videoId) {
-        const uploadedVideo = await uploadVideo(selectedVideo);
-        currentVideoId = uploadedVideo.video.id;
-        setVideoId(currentVideoId);
-      }
-      
+      // if (selectedVideo && !videoId) {
+      //   const uploadedVideo = await uploadVideo(selectedVideo);
+      //   currentVideoId = uploadedVideo.video.id;
+      //   setVideoId(currentVideoId);
+      // }
+
       // 如果有选择背景且需要应用背景，则上传背景
-      if (selectedBackground && applyBackground) {
-        await uploadBackgroundImage(currentVideoId, selectedBackground);
+      // if (selectedBackground && applyBackground) {
+      //   await uploadBackgroundImage(currentVideoId, selectedBackground);
+      // }
+
+      const params = {
+        videoFile: selectedVideo || undefined,
+        videoId,
+        modelType: selectedModel,
+        backgroundFile: selectedBackground,
+        backgroundId: bgId,
+        userId: currentUser.id
+        // applyBackground: applyBackground &&!!selectedBackground
       }
-      
+
+      console.log('hxy--------------- currentUser, params', currentUser, params)
+
+
       // 开始视频分割处理
-      await startVideoSegmentation(currentVideoId, selectedModel);
-      
+      // await startVideoSegmentation(currentVideoId, selectedModel);
+
       // 创建视频处理任务
-      await createTask(currentVideoId, {
-        modelId: selectedModel,
-        applyBackground: applyBackground && !!selectedBackground
-      });
-      
+      // await createTask(currentVideoId, {
+      //   modelId: selectedModel,
+      //   applyBackground: applyBackground && !!selectedBackground
+      // });
+
+      const res = await createTaskV2(params);
+      console.log('hxy--------------- res', res)
+
       setTaskCreated(true);
-      
+
       // 任务创建成功后延迟跳转到仪表盘
       setTimeout(() => {
         navigate('/dashboard');
@@ -169,6 +220,7 @@ const VideoUpload = () => {
   const fetchVideos = async () => {
     try {
       setVideosLoading(true);
+
       const data = await getAllVideos();
       setVideos(Array.isArray(data) ? data : (data?.videos || []));
     } catch (error) {
@@ -180,9 +232,13 @@ const VideoUpload = () => {
 
   // 从背景库选择背景
   const handleSelectFromLibrary = (background) => {
+    console.log('hxy--------------- background', background)
+
+    setBGid(background.id);
     setSelectedBackground(null);
-    const imagePath = `http://localhost:5001/${background.path}`;
-    
+    // 修改背景图片路径
+    const imagePath = `${API_BASE_URL}/${background.path}`;
+
     // 创建新的Image对象，加载图片
     const img = new Image();
     img.onload = () => {
@@ -191,7 +247,7 @@ const VideoUpload = () => {
         .then(res => res.blob())
         .then(blob => {
           const file = new File([blob], background.name || 'background.jpg', { type: blob.type });
-          setSelectedBackground(file);
+          // setSelectedBackground(file);
           setBackgroundPreview(imagePath);
         })
         .catch(error => {
@@ -202,7 +258,7 @@ const VideoUpload = () => {
       console.error('背景图片加载失败');
     };
     img.src = imagePath;
-    
+
     setShowBackgroundDialog(false);
   };
 
@@ -210,10 +266,10 @@ const VideoUpload = () => {
   const handleSelectVideoFromLibrary = (video) => {
     setSelectedVideo(null);
     setVideoId(video.id);
-    
-    const videoPath = `http://localhost:5001/${video.originalVideo}`;
+
+    const videoPath = `${API_BASE_URL}/${video.originalVideo}`;
     setVideoPreview(videoPath);
-    
+
     // 模拟设置视频信息
     setVideoInfo({
       name: video.originalVideo.split('/').pop() || 'video.mp4',
@@ -223,30 +279,31 @@ const VideoUpload = () => {
       width: '未知',
       height: '未知'
     });
-    
+
     setShowVideoDialog(false);
   };
 
   return (
-    <Container maxWidth="md">
+    <Container maxWidth='md'>
       <Paper elevation={3} sx={{ p: 3, mt: 4, borderRadius: 2 }}>
-        <Typography variant="h4" align="center" gutterBottom>
+        <Typography variant='h4' align='center' gutterBottom>
           创建视频分割任务
         </Typography>
-        
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
+
+        {/* 添加 ref 到错误提示元素 */}
+        {error && !loading && (
+          <Alert ref={errorRef} severity='error' sx={{ mb: 3 }}>
             {error}
           </Alert>
         )}
-        
+
         {taskCreated ? (
           <Box sx={{ textAlign: 'center', py: 5 }}>
             <CircularProgress size={40} sx={{ mb: 2 }} />
-            <Typography variant="h6" gutterBottom>
+            <Typography variant='h6' gutterBottom>
               任务已成功创建！
             </Typography>
-            <Typography variant="body1" color="textSecondary">
+            <Typography variant='body1' color='textSecondary'>
               您的视频处理任务已加入队列，稍后将自动跳转到仪表盘查看进度。
             </Typography>
           </Box>
@@ -254,40 +311,40 @@ const VideoUpload = () => {
           <Box>
             {/* 视频选择区域 */}
             <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" gutterBottom>
+              <Typography variant='h6' gutterBottom>
                 1. 选择视频
               </Typography>
-              
+
               <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
                 <Button
-                  variant="contained"
+                  variant='contained'
                   startIcon={<CloudUpload />}
                   onClick={() => videoInputRef.current.click()}
                 >
                   上传新视频
                 </Button>
-                
+
                 <Button
-                  variant="outlined"
+                  variant='outlined'
                   onClick={() => setShowVideoDialog(true)}
                 >
                   从视频库选择
                 </Button>
               </Box>
-              
+
               <input
-                type="file"
-                accept="video/*"
+                type='file'
+                accept='video/*'
                 style={{ display: 'none' }}
                 ref={videoInputRef}
                 onChange={handleVideoChange}
               />
-              
+
               {videoPreview && (
                 <Box sx={{ mt: 2 }}>
                   <Card sx={{ maxWidth: 600, mx: 'auto' }}>
                     <CardMedia
-                      component="video"
+                      component='video'
                       controls
                       src={videoPreview}
                       sx={{ maxHeight: 300 }}
@@ -295,23 +352,27 @@ const VideoUpload = () => {
                     />
                   </Card>
                   {videoInfo && (
-                    <Typography variant="body2" color="textSecondary" sx={{ mt: 1, textAlign: 'center' }}>
-                      {videoInfo.name} 
+                    <Typography
+                      variant='body2'
+                      color='textSecondary'
+                      sx={{ mt: 1, textAlign: 'center' }}
+                    >
+                      {videoInfo.name}
                       {videoInfo.size !== '未知' && ` (${videoInfo.size} MB)`}
                     </Typography>
                   )}
                 </Box>
               )}
             </Box>
-            
+
             <Divider sx={{ my: 3 }} />
-            
+
             {/* 背景选择区域 */}
             <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" gutterBottom>
+              <Typography variant='h6' gutterBottom>
                 2. 设置背景
               </Typography>
-              
+
               <FormControlLabel
                 control={
                   <Checkbox
@@ -319,76 +380,84 @@ const VideoUpload = () => {
                     onChange={(e) => setApplyBackground(e.target.checked)}
                   />
                 }
-                label="应用自定义背景"
+                label='应用自定义背景'
                 sx={{ mb: 2 }}
               />
-              
+
               {applyBackground && (
                 <>
                   <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
                     <Button
-                      variant="contained"
+                      variant='contained'
                       startIcon={<Wallpaper />}
                       onClick={() => backgroundInputRef.current.click()}
                     >
                       上传新背景
                     </Button>
-                    
+
                     <Button
-                      variant="outlined"
+                      variant='outlined'
                       onClick={() => setShowBackgroundDialog(true)}
                     >
                       从背景库选择
                     </Button>
                   </Box>
-                  
+
                   <input
-                    type="file"
-                    accept="image/*"
+                    type='file'
+                    accept='image/*'
                     style={{ display: 'none' }}
                     ref={backgroundInputRef}
                     onChange={handleBackgroundChange}
                   />
-                  
+
                   {backgroundPreview ? (
                     <Box sx={{ mt: 2 }}>
                       <Card sx={{ maxWidth: 600, mx: 'auto' }}>
                         <CardMedia
-                          component="img"
+                          component='img'
                           image={backgroundPreview}
                           sx={{ height: 300, objectFit: 'contain' }}
                         />
                       </Card>
                       {selectedBackground && (
-                        <Typography variant="body2" color="textSecondary" sx={{ mt: 1, textAlign: 'center' }}>
+                        <Typography
+                          variant='body2'
+                          color='textSecondary'
+                          sx={{ mt: 1, textAlign: 'center' }}
+                        >
                           {selectedBackground.name}
-                          {selectedBackground.size && ` (${(selectedBackground.size / (1024 * 1024)).toFixed(2)} MB)`}
+                          {selectedBackground.size &&
+                            ` (${(
+                              selectedBackground.size /
+                              (1024 * 1024)
+                            ).toFixed(2)} MB)`}
                         </Typography>
                       )}
                     </Box>
                   ) : (
-                    <Alert severity="info" sx={{ mb: 3 }}>
+                    <Alert severity='info' sx={{ mb: 3 }}>
                       您还没有选择背景图片。
                     </Alert>
                   )}
                 </>
               )}
             </Box>
-            
+
             <Divider sx={{ my: 3 }} />
-            
+
             {/* 模型选择区域 */}
             <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" gutterBottom>
+              <Typography variant='h6' gutterBottom>
                 3. 选择分割模型
               </Typography>
-              
+
               <FormControl fullWidth sx={{ mb: 3 }}>
-                <InputLabel id="model-select-label">选择分割模型</InputLabel>
+                <InputLabel id='model-select-label'>选择分割模型</InputLabel>
                 <Select
-                  labelId="model-select-label"
+                  labelId='model-select-label'
                   value={selectedModel}
-                  label="选择分割模型"
+                  label='选择分割模型'
                   onChange={(e) => setSelectedModel(e.target.value)}
                 >
                   {segmentationModels.map((model) => (
@@ -398,25 +467,32 @@ const VideoUpload = () => {
                   ))}
                 </Select>
               </FormControl>
-              
+
               {/* 显示所选模型的说明 */}
-              <Paper variant="outlined" sx={{ p: 2 }}>
-                <Typography variant="body2" color="textSecondary">
-                  {segmentationModels.find(m => m.id === selectedModel)?.description}
+              <Paper variant='outlined' sx={{ p: 2 }}>
+                <Typography variant='body2' color='textSecondary'>
+                  {
+                    segmentationModels.find((m) => m.id === selectedModel)
+                      ?.description
+                  }
                 </Typography>
               </Paper>
             </Box>
-            
+
             <Divider sx={{ my: 3 }} />
-            
+
             {/* 任务确认和开始按钮 */}
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
               <Button
-                variant="contained"
-                color="primary"
-                size="large"
+                variant='contained'
+                color='primary'
+                size='large'
                 onClick={handleStartTask}
-                disabled={(!selectedVideo && !videoId) || loading}
+                disabled={
+                  (!selectedVideo && !videoId) ||
+                  loading ||
+                  (!selectedBackground && !bgId)
+                }
                 sx={{ minWidth: 200 }}
               >
                 {loading ? <CircularProgress size={24} /> : '开始任务'}
@@ -425,12 +501,12 @@ const VideoUpload = () => {
           </Box>
         )}
       </Paper>
-      
+
       {/* 背景库选择对话框 */}
-      <Dialog 
-        open={showBackgroundDialog} 
+      <Dialog
+        open={showBackgroundDialog}
         onClose={() => setShowBackgroundDialog(false)}
-        maxWidth="md"
+        maxWidth='md'
         fullWidth
       >
         <DialogTitle>选择背景</DialogTitle>
@@ -441,29 +517,30 @@ const VideoUpload = () => {
             </Box>
           ) : backgrounds.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 4 }}>
-              <Typography variant="body1" color="textSecondary">
+              <Typography variant='body1' color='textSecondary'>
                 背景库中没有可用的背景图片。
               </Typography>
             </Box>
           ) : (
             <Grid container spacing={2} sx={{ mt: 1 }}>
-              {backgrounds.map(background => (
+              {backgrounds.map((background) => (
                 <Grid item xs={6} sm={4} md={3} key={background.id}>
-                  <Card 
-                    sx={{ 
+                  <Card
+                    sx={{
                       cursor: 'pointer',
                       '&:hover': { boxShadow: 6 }
                     }}
                     onClick={() => handleSelectFromLibrary(background)}
                   >
                     <CardMedia
-                      component="img"
-                      height="120"
-                      image={`http://localhost:5001/${background.path}`}
+                      component='img'
+                      height='120'
+                      image={`${API_BASE_URL}/${background.path}`}
                       alt={background.name || '背景图片'}
                     />
                     <CardContent sx={{ py: 1 }}>
-                      <Typography variant="body2" noWrap>
+                      <Typography variant='body2' noWrap>
+                        {background.name}
                         {background.name || `背景 ${background.id}`}
                       </Typography>
                     </CardContent>
@@ -474,12 +551,12 @@ const VideoUpload = () => {
           )}
         </DialogContent>
       </Dialog>
-      
+
       {/* 视频库选择对话框 */}
-      <Dialog 
-        open={showVideoDialog} 
+      <Dialog
+        open={showVideoDialog}
         onClose={() => setShowVideoDialog(false)}
-        maxWidth="md"
+        maxWidth='md'
         fullWidth
       >
         <DialogTitle>选择视频</DialogTitle>
@@ -490,32 +567,34 @@ const VideoUpload = () => {
             </Box>
           ) : videos.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 4 }}>
-              <Typography variant="body1" color="textSecondary">
+              <Typography variant='body1' color='textSecondary'>
                 视频库中没有可用的视频。
               </Typography>
             </Box>
           ) : (
             <Grid container spacing={2} sx={{ mt: 1 }}>
-              {videos.map(video => (
+              {videos.map((video) => (
                 <Grid item xs={12} sm={6} md={4} key={video.id}>
-                  <Card 
-                    sx={{ 
+                  <Card
+                    sx={{
                       cursor: 'pointer',
                       '&:hover': { boxShadow: 6 }
                     }}
                     onClick={() => handleSelectVideoFromLibrary(video)}
                   >
                     <CardMedia
-                      component="video"
-                      height="140"
-                      image={`http://localhost:5001/${video.originalVideo}`}
+                      component='video'
+                      height='140'
+                      image={`${API_BASE_URL}/${video.originalVideo}`}
                     />
                     <CardContent sx={{ py: 1 }}>
-                      <Typography variant="body2" noWrap>
-                        {video.originalVideo.split('/').pop() || `视频 ${video.id}`}
+                      <Typography variant='body2' noWrap>
+                        {video.originalVideo.split('/').pop() ||
+                          `视频 ${video.id}`}
                       </Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        添加时间: {new Date(video.createdAt).toLocaleDateString()}
+                      <Typography variant='caption' color='textSecondary'>
+                        添加时间:{' '}
+                        {new Date(video.createdAt).toLocaleDateString()}
                       </Typography>
                     </CardContent>
                   </Card>
@@ -526,7 +605,7 @@ const VideoUpload = () => {
         </DialogContent>
       </Dialog>
     </Container>
-  );
+  )
 };
 
-export default VideoUpload; 
+export default VideoUpload;

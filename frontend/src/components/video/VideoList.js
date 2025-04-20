@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Container,
@@ -28,42 +28,50 @@ import {
   Tooltip,
   Paper
 } from '@mui/material';
-import { 
-  Delete, 
-  MovieFilter, 
-  Visibility, 
-  Add, 
-  Refresh, 
+import {
+  Delete,
+  MovieFilter,
+  Visibility,
+  Add,
+  Refresh,
   Edit,
   CloudUpload,
   Wallpaper
 } from '@mui/icons-material';
-import { 
-  getAllVideos, 
-  deleteVideo, 
-  getAllTasks, 
+import {
+  getAllVideos,
+  deleteVideo,
+  getAllTasks,
+  getAllTasksV2,
   changeVideoBackground,
   getAllBackgrounds,
   uploadBackgroundToLibrary,
   deleteBackground,
   uploadVideo
 } from '../../services/videoService';
+import { AuthContext } from '../../contexts/AuthContext';
+
+import { API_BASE_URL} from '../../config'
+import dayjs from 'dayjs'
+import {DATE_SECOND_FORMAT} from '../../constants/index.ts'
+import { MODEL_TYPE_MAP } from '../../constants/maps.ts'
 
 const statusColors = {
-  pending: 'warning',
+  waiting: 'warning',
   processing: 'info',
   completed: 'success',
   failed: 'error'
 };
 
 const statusTranslations = {
-  pending: '待处理',
+  waiting: '待处理',
   processing: '处理中',
   completed: '已完成',
   failed: '失败'
 };
 
 const VideoList = () => {
+  const { currentUser } = useContext(AuthContext);
   const [videos, setVideos] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [backgrounds, setBackgrounds] = useState([]);
@@ -82,17 +90,18 @@ const VideoList = () => {
   const [videoName, setVideoName] = useState('');
   const [showVideoUploadForm, setShowVideoUploadForm] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  
+
   const backgroundInputRef = useRef(null);
   const videoInputRef = useRef(null);
+
 
   // 页面加载时获取数据
   useEffect(() => {
     fetchData();
-    
+
     // 每30秒自动刷新一次数据
     const intervalId = setInterval(fetchData, 30000);
-    
+
     return () => clearInterval(intervalId);
   }, []);
 
@@ -111,6 +120,8 @@ const VideoList = () => {
   const fetchVideos = async () => {
     try {
       setLoading(true);
+      console.log('hxy--------------- 111', 111)
+
       const data = await getAllVideos();
       // 确保videos是一个数组
       setVideos(Array.isArray(data) ? data : (data?.videos || []));
@@ -126,9 +137,15 @@ const VideoList = () => {
   // 获取任务列表
   const fetchTasks = async () => {
     try {
-      const data = await getAllTasks();
+      const data = await getAllTasksV2({
+        "userId": currentUser.id,
+        "pageNum": 1,
+        "pageSize": 20, // todo
+      });
+      console.log('hxy--------------- data', data)
+
       // 确保tasks是一个数组
-      setTasks(Array.isArray(data) ? data : (data?.tasks || []));
+      setTasks(data?.list?.length ? data?.list : []);
       return data;
     } catch (error) {
       console.error('获取任务列表失败:', error);
@@ -176,7 +193,7 @@ const VideoList = () => {
   // 删除视频
   const handleDeleteConfirm = async () => {
     if (!videoToDelete) return;
-    
+
     try {
       await deleteVideo(videoToDelete.id);
       setVideos(videos.filter(video => video.id !== videoToDelete.id));
@@ -190,7 +207,7 @@ const VideoList = () => {
   // 删除背景
   const handleDeleteBackgroundConfirm = async () => {
     if (!backgroundToDelete) return;
-    
+
     try {
       await deleteBackground(backgroundToDelete.id);
       setBackgrounds(backgrounds.filter(bg => bg.id !== backgroundToDelete.id));
@@ -216,7 +233,7 @@ const VideoList = () => {
   const handleBackgroundUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     try {
       setUploadingBackground(true);
       setError('');
@@ -236,20 +253,20 @@ const VideoList = () => {
   const handleVideoUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     try {
       setUploadingVideo(true);
       setUploadProgress(0);
       setError('');
-      
+
       // 如果没有设置名称，则使用文件名
       const name = videoName || file.name;
-      
+
       // 使用修改后的uploadVideo函数，传入名称和进度回调
       await uploadVideo(file, name, (progress) => {
         setUploadProgress(progress);
       });
-      
+
       await fetchVideos();
       setVideoName('');
       setShowVideoUploadForm(false);
@@ -268,26 +285,27 @@ const VideoList = () => {
   };
 
   // 获取背景图片URL
+  // 修改缩略图和背景路径
   const getBackgroundImageUrl = (background) => {
-    return `http://localhost:5001/${background.path}`;
+    return `${API_BASE_URL}/${background.path}`;
   };
+
 
   // 视频缩略图或占位符
   const getVideoThumbnail = (video) => {
     if (video.finalVideo) {
-      return `http://localhost:5001/${video.finalVideo}`;
+      return `${API_BASE_URL}/${video.finalVideo}`;
     } else if (video.extractedForeground) {
-      return `http://localhost:5001/${video.extractedForeground}`;
+      return `${API_BASE_URL}/${video.extractedForeground}`;
     } else if (video.originalVideo) {
-      return `http://localhost:5001/${video.originalVideo}`;
+      return `${API_BASE_URL}/${video.originalVideo}`;
     }
     return 'https://via.placeholder.com/320x180?text=无预览';
   };
 
   // 格式化日期
   const formatDate = (dateString) => {
-    const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-    return new Date(dateString).toLocaleDateString('zh-CN', options);
+    return dayjs(dateString).format(DATE_SECOND_FORMAT)
   };
 
   // 视频状态显示
@@ -306,9 +324,9 @@ const VideoList = () => {
   const getTaskProgress = (task) => {
     let progress = 0;
     let statusText = '';
-    
+
     switch (task.status) {
-      case 'pending':
+      case 'waiting':
         progress = 0;
         statusText = '等待处理';
         break;
@@ -327,16 +345,16 @@ const VideoList = () => {
       default:
         statusText = task.status;
     }
-    
+
     return (
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="body2">{statusText}</Typography>
           <Typography variant="body2">{progress}%</Typography>
         </Box>
-        <LinearProgress 
-          variant="determinate" 
-          value={progress} 
+        <LinearProgress
+          variant="determinate"
+          value={progress}
           color={task.status === 'failed' ? 'error' : 'primary'}
         />
       </Box>
@@ -354,18 +372,15 @@ const VideoList = () => {
   const renderVideoList = () => {
     return (
       <>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        </Box>
-        
-        {showVideoUploadForm && (
+        {showVideoUploadForm ? (
           <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
+            <Typography variant='h6' gutterBottom>
               上传视频到库
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'flex-end', mb: 2 }}>
               <TextField
-                label="视频名称（可选）"
-                variant="outlined"
+                label='视频名称（可选）'
+                variant='outlined'
                 fullWidth
                 value={videoName}
                 onChange={(e) => setVideoName(e.target.value)}
@@ -373,92 +388,138 @@ const VideoList = () => {
                 sx={{ mr: 2 }}
               />
               <input
-                type="file"
-                accept="video/*"
+                type='file'
+                accept='video/*'
                 style={{ display: 'none' }}
                 ref={videoInputRef}
                 onChange={handleVideoUpload}
               />
               <Button
-                variant="contained"
-                color="primary"
+                variant='contained'
+                color='primary'
                 onClick={() => videoInputRef.current.click()}
                 disabled={uploadingVideo}
-                startIcon={uploadingVideo ? <CircularProgress size={24} /> : <CloudUpload />}
+                startIcon={
+                  uploadingVideo ? (
+                    <CircularProgress size={24} />
+                  ) : (
+                    <CloudUpload />
+                  )
+                }
               >
                 {uploadingVideo ? '上传中...' : '选择并上传'}
               </Button>
             </Box>
-            
+
             {uploadingVideo && (
               <Box sx={{ width: '100%', mt: 2 }}>
-                <Typography variant="body2" sx={{ mb: 1 }}>
+                <Typography variant='body2' sx={{ mb: 1 }}>
                   上传进度: {uploadProgress}%
                 </Typography>
-                <LinearProgress variant="determinate" value={uploadProgress} />
+                <LinearProgress variant='determinate' value={uploadProgress} />
               </Box>
             )}
-            
-            <Typography variant="body2" color="textSecondary">
+
+            <Typography variant='body2' color='textSecondary'>
               支持的格式: MP4, WebM, MOV, AVI 等。最大文件大小: 100MB
             </Typography>
           </Paper>
+        ) : (
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mb: 3
+            }}
+          >
+            <Button
+              variant='contained'
+              color='primary'
+              onClick={() => setShowVideoUploadForm(true)}
+              startIcon={<CloudUpload />}
+            >
+              上传视频
+            </Button>
+          </Box>
         )}
-        
-        {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-        
+
+        {error && (
+          <Alert severity='error' sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
+
         {loading ? (
           <CircularProgress sx={{ display: 'block', mx: 'auto' }} />
         ) : videos.length === 0 ? (
-          <Alert severity="info">
+          <Alert severity='info'>
             您还没有上传任何视频。点击"上传视频"按钮开始上传。
           </Alert>
         ) : (
           <Grid container spacing={3}>
-            {videos.map(video => (
+            {videos.map((video) => (
               <Grid item xs={12} sm={6} md={4} key={video.id}>
-                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Card
+                  sx={{
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column'
+                  }}
+                >
                   <CardActionArea component={Link} to={`/videos/${video.id}`}>
                     <CardMedia
-                      component="video"
+                      component='video'
                       sx={{ height: 180 }}
                       image={getVideoThumbnail(video)}
                     />
                     <CardContent>
-                      <Typography variant="h6" component="div" noWrap>
-                        {video.name || (video.originalVideo ? video.originalVideo.split('/').pop() : `视频 ${video.id}`)}
+                      <Typography variant='h6' component='div' noWrap>
+                        {video.name ||
+                          (video.originalVideo
+                            ? video.originalVideo.split('/').pop()
+                            : `视频 ${video.id}`)}
                       </Typography>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
-                        <Chip 
-                          label={statusTranslations[video.status] || video.status} 
-                          color={statusColors[video.status] || 'default'} 
-                          size="small" 
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          mt: 1
+                        }}
+                      >
+                        <Chip
+                          label={
+                            statusTranslations[video.status] || video.status
+                          }
+                          color={statusColors[video.status] || 'default'}
+                          size='small'
                         />
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant='caption' color='text.secondary'>
                           {formatDate(video.createdAt)}
                         </Typography>
                       </Box>
                     </CardContent>
                   </CardActionArea>
                   <CardActions>
-                    <Button 
-                      size="small" 
-                      startIcon={<Delete />} 
-                      color="error"
+                    <Button
+                      size='small'
+                      startIcon={<Delete />}
+                      color='error'
                       onClick={() => handleDeleteClick(video)}
                     >
                       删除
                     </Button>
-                    <Button 
-                      size="small" 
+                    <Button
+                      size='small'
                       startIcon={<Visibility />}
                       component={Link}
                       to={`/videos/${video.id}`}
                     >
                       查看
                     </Button>
-                    <Button 
-                      size="small" 
+                    <Button
+                      size='small'
                       startIcon={<MovieFilter />}
                       component={Link}
                       to={`/upload?videoId=${video.id}`}
@@ -472,7 +533,7 @@ const VideoList = () => {
           </Grid>
         )}
       </>
-    );
+    )
   };
 
   const renderTaskList = () => {
@@ -499,66 +560,96 @@ const VideoList = () => {
     }
 
     return (
-      <Grid container spacing={3}>
-        {tasks.map((task) => (
-          <Grid item xs={12} sm={6} key={task.id}>
-            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                  <Typography variant="subtitle1" component="div">
-                    {task.videoName || `任务 ${String(task.id).substring(0, 8)}`}
-                  </Typography>
-                  {getStatusDisplay(task.status)}
-                </Box>
-                
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  创建于 {formatDate(task.createdAt)}
-                </Typography>
-                
-                <Box sx={{ my: 2 }}>
-                  {getTaskProgress(task)}
-                </Box>
-                
-                <Typography variant="body2" color="text.secondary">
-                  模型: {task.model || '标准'}
-                </Typography>
-                
-                {task.backgroundImage && (
-                  <Typography variant="body2" color="text.secondary">
-                    自定义背景: 已设置
-                  </Typography>
-                )}
-              </CardContent>
-              
-              <CardActions sx={{ mt: 'auto' }}>
-                {task.status === 'completed' && (
-                  <Button
-                    size="small"
-                    color="primary"
-                    component={Link}
-                    to={`/videos/${task.videoId}`}
-                    startIcon={<Visibility />}
+      <>
+        <div style={{marginBottom: 20}}>
+
+        <Button
+          variant='contained'
+          color='primary'
+          component={Link}
+          to='/upload'
+          startIcon={<Add />}
+        >
+          创建任务
+        </Button>
+        </div>
+        <Grid container spacing={3}>
+          {tasks?.map((task) => (
+            <Grid item xs={12} sm={6} key={task.id}>
+              <Card
+                sx={{
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}
+              >
+                <CardContent>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      mb: 2
+                    }}
                   >
-                    查看结果
-                  </Button>
-                )}
-                {(task.status === 'pending' || task.status === 'failed') && (
-                  <Button
-                    size="small"
-                    color="secondary"
-                    component={Link}
-                    to={`/upload?taskId=${task.id}`}
-                    startIcon={<Edit />}
+                    <Typography variant='subtitle1' component='div'>
+                      {task.videoName ||
+                        `任务 ${String(task.id).substring(0, 8)}`}
+                    </Typography>
+                    {getStatusDisplay(task.status)}
+                  </Box>
+
+                  <Typography
+                    variant='body2'
+                    color='text.secondary'
+                    gutterBottom
                   >
-                    修改任务
-                  </Button>
-                )}
-              </CardActions>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-    );
+                    创建于 {formatDate(task.startTime)}
+                  </Typography>
+
+                  <Box sx={{ my: 2 }}>{getTaskProgress(task)}</Box>
+
+                  <Typography variant='body2' color='text.secondary'>
+                    模型: {MODEL_TYPE_MAP[task.modelType] || '标准'}
+                  </Typography>
+
+                  {task.backgroundImage && (
+                    <Typography variant='body2' color='text.secondary'>
+                      自定义背景: 已设置
+                    </Typography>
+                  )}
+                </CardContent>
+
+                <CardActions sx={{ mt: 'auto' }}>
+                  {task.status === 'completed' && (
+                    <Button
+                      size='small'
+                      color='primary'
+                      component={Link}
+                      to={`/videos/${task.videoId}`}
+                      startIcon={<Visibility />}
+                    >
+                      查看结果
+                    </Button>
+                  )}
+                  {(task.status === 'waiting' || task.status === 'failed') && (
+                    <Button
+                      size='small'
+                      color='secondary'
+                      component={Link}
+                      to={`/upload?taskId=${task.id}`}
+                      startIcon={<Edit />}
+                    >
+                      修改任务
+                    </Button>
+                  )}
+                </CardActions>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      </>
+    )
   };
 
   const renderBackgroundList = () => {
@@ -570,7 +661,7 @@ const VideoList = () => {
               <Typography variant="subtitle1" gutterBottom>
                 上传新背景
               </Typography>
-              
+
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <TextField
                   label="背景名称（可选）"
@@ -580,7 +671,7 @@ const VideoList = () => {
                   size="small"
                   sx={{ mb: 2 }}
                 />
-                
+
                 <input
                   accept="image/*"
                   type="file"
@@ -588,7 +679,7 @@ const VideoList = () => {
                   ref={backgroundInputRef}
                   onChange={handleBackgroundUpload}
                 />
-                
+
                 <Box sx={{ display: 'flex', gap: 2 }}>
                   <Button
                     variant="contained"
@@ -598,7 +689,7 @@ const VideoList = () => {
                   >
                     {uploadingBackground ? <CircularProgress size={24} /> : '选择图片'}
                   </Button>
-                  
+
                   <Button
                     variant="outlined"
                     onClick={() => setShowUploadForm(false)}
@@ -619,7 +710,7 @@ const VideoList = () => {
             </Button>
           )}
         </Box>
-        
+
         {backgrounds.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 5 }}>
             <Wallpaper sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
@@ -644,6 +735,7 @@ const VideoList = () => {
                   />
                   <CardContent>
                     <Typography variant="subtitle1" component="div" noWrap>
+                      {background.name}
                       {background.name || `背景 ${String(background.id).substring(0, 8)}`}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
@@ -652,8 +744,8 @@ const VideoList = () => {
                   </CardContent>
                   <CardActions sx={{ mt: 'auto' }}>
                     <Tooltip title="使用此背景">
-                      <IconButton 
-                        color="primary" 
+                      <IconButton
+                        color="primary"
                         size="small"
                       >
                         <Visibility />
@@ -691,15 +783,26 @@ const VideoList = () => {
   };
 
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth='lg'>
       <Box sx={{ mt: 4, mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h4" component="h1">
-            {activeTab === 0 ? '我的视频' : activeTab === 1 ? '任务列表' : '背景库'}
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mb: 3
+          }}
+        >
+          <Typography variant='h4' component='h1'>
+            {activeTab === 0
+              ? '我的视频'
+              : activeTab === 1
+              ? '任务列表'
+              : '背景库'}
           </Typography>
           <Box>
             <Button
-              variant="outlined"
+              variant='outlined'
               onClick={fetchData}
               startIcon={<Refresh />}
               sx={{ mr: 2 }}
@@ -707,32 +810,33 @@ const VideoList = () => {
               刷新
             </Button>
             <Button
-              variant="contained"
-              color="primary"
-              onClick={() => setShowVideoUploadForm(true)}
-              startIcon={<CloudUpload />}
+              variant='contained'
+              color='primary'
+              component={Link}
+              to='/upload'
+              startIcon={<Add />}
             >
-              新增任务
+              创建任务
             </Button>
           </Box>
         </Box>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
+          <Alert severity='error' sx={{ mb: 3 }}>
             {error}
           </Alert>
         )}
 
         <Box sx={{ width: '100%', mb: 3 }}>
-          <Tabs 
-            value={activeTab} 
-            onChange={handleTabChange} 
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
             centered
             sx={{ mb: 2 }}
           >
-            <Tab label="视频库" />
-            <Tab label="任务列表" />
-            <Tab label="背景库" />
+            <Tab label='视频库' />
+            <Tab label='任务列表' />
+            <Tab label='背景库' />
           </Tabs>
           <Divider />
         </Box>
@@ -741,10 +845,7 @@ const VideoList = () => {
       </Box>
 
       {/* 删除视频确认对话框 */}
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={handleDeleteClose}
-      >
+      <Dialog open={deleteDialogOpen} onClose={handleDeleteClose}>
         <DialogTitle>删除视频</DialogTitle>
         <DialogContent>
           <DialogContentText>
@@ -753,7 +854,7 @@ const VideoList = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteClose}>取消</Button>
-          <Button onClick={handleDeleteConfirm} color="error" autoFocus>
+          <Button onClick={handleDeleteConfirm} color='error' autoFocus>
             删除
           </Button>
         </DialogActions>
@@ -772,13 +873,17 @@ const VideoList = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteBackgroundClose}>取消</Button>
-          <Button onClick={handleDeleteBackgroundConfirm} color="error" autoFocus>
+          <Button
+            onClick={handleDeleteBackgroundConfirm}
+            color='error'
+            autoFocus
+          >
             删除
           </Button>
         </DialogActions>
       </Dialog>
     </Container>
-  );
+  )
 };
 
-export default VideoList; 
+export default VideoList;

@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
+import { API_URL } from '../config';
 
 // 配置axios默认设置
 axios.defaults.withCredentials = true;
@@ -15,7 +16,7 @@ export const AuthProvider = ({ children }) => {
   // 获取用户资料的方法 - 使用useCallback包装
   const getUserProfile = useCallback(async () => {
     try {
-      const response = await axios.get('http://localhost:5001/api/auth/me');
+      const response = await axios.get(`${API_URL}/auth/me`);
       setCurrentUser(response.data.user);
       setLoading(false);
     } catch (error) {
@@ -56,7 +57,7 @@ export const AuthProvider = ({ children }) => {
   const register = async (username, email, password) => {
     try {
       setError(null);
-      const response = await axios.post('http://localhost:5001/api/auth/register', {
+      const response = await axios.post(`${API_URL}/auth/register`, {
         username,
         email,
         password
@@ -84,7 +85,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       setError(null);
-      const response = await axios.post('http://localhost:5001/api/auth/login', {
+      const response = await axios.post(`${API_URL}/auth/login`, {
         email,
         password
       });
@@ -120,6 +121,19 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   };
 
+  // 添加更新用户资料的方法
+  const updateProfile = async (profileData) => {
+    try {
+      setError(null);
+      const response = await axios.put(`${API_URL}/auth/profile`, profileData);
+      setCurrentUser(response.data.user);
+      return response.data.user;
+    } catch (error) {
+      setError(error.response?.data?.message || '更新失败');
+      throw error;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -128,10 +142,11 @@ export const AuthProvider = ({ children }) => {
         error,
         register,
         login,
-        logout
+        logout,
+        updateProfile // 添加新方法
       }}
     >
       {children}
     </AuthContext.Provider>
   );
-}; 
+};

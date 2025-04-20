@@ -52,17 +52,17 @@ const Navbar = () => {
 
           {currentUser ? (
             <>
-              <Button 
-                color="inherit" 
-                component={Link} 
+              <Button
+                color="inherit"
+                component={Link}
                 to="/dashboard"
                 sx={{ mx: 1 }}
               >
                 仪表盘
               </Button>
-              <Button 
-                color="inherit" 
-                component={Link} 
+              <Button
+                color="inherit"
+                component={Link}
                 to="/upload"
                 sx={{ mx: 1 }}
               >
@@ -117,4 +117,4 @@ const Navbar = () => {
   );
 };
 
-export default Navbar; 
+export default Navbar;
