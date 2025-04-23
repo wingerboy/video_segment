@@ -50,11 +50,17 @@ export const getFullUrl = (path) => {
 };
 
 // 获取所有视频
-export const getAllVideos = async () => {
+export const getAllVideos = async (params) => {
   try {
-    const response = await api.get('/videos');
-    // 确保返回数组
-    return Array.isArray(response.data) ? response.data : (response.data?.videos || []);
+    const res = await apiJava.post('/video/list', params);
+    const { data, code, msg } = res?.data;
+
+    console.log('获取视频列表:', data, code, msg);
+    if (code !== 0) {
+      throw new Error(msg || '获取视频列表');
+    }
+
+    return data;
   } catch (error) {
     console.error('获取视频列表失败:', error);
     throw error;
@@ -207,16 +213,16 @@ export const createTaskV2 = async (params) => {
       }
     });
 
-    const response = await apiJava.post('/task/create', formData, {
+    const {data} = await apiJava.post('/task/create', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
     });
-    if(response?.data?.code!== 0){
-      throw new Error(response?.data?.msg || '创建任务失败');
+    if(data?.code!== 0){
+      throw new Error(data?.msg || '创建任务失败');
     }
 
-    return response.data;
+    return data;
   } catch (error) {
     console.error('创建任务失败:', error);
     throw error;
@@ -296,11 +302,17 @@ export const changeVideoBackground = async (videoId, backgroundId) => {
 };
 
 // 获取所有背景图片
-export const getAllBackgrounds = async () => {
+export const getAllBackgrounds = async (params) => {
   try {
-    const response = await api.get('/backgrounds');
-    // 确保返回数组
-    return Array.isArray(response.data) ? response.data : (response.data?.backgrounds || []);
+    const res = await apiJava.post('/background/list', params);
+    const { data, code, msg } = res?.data;
+
+    console.log('获取背景库列表:', data, code, msg);
+    if (code !== 0) {
+      throw new Error(msg || '获取背景库列表失败');
+    }
+
+    return data;
   } catch (error) {
     console.error('获取背景库失败:', error);
     throw error;
@@ -332,8 +344,14 @@ export const uploadBackgroundToLibrary = async (file, name = '') => {
 // 删除背景
 export const deleteBackground = async (id) => {
   try {
-    const response = await api.delete(`/backgrounds/${id}`);
-    return response.data;
+    const res = await api.delete(`/backgrounds/${id}`);
+    const { background, message } = res?.data;
+    if(background?.id){
+     return background
+    }
+    else{
+      throw new Error(message || '删除背景失败');
+    }
   } catch (error) {
     console.error('删除背景失败:', error);
     throw error;

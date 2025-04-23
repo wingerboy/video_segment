@@ -16,7 +16,7 @@ import Register from './components/auth/Register';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
 // Video Components
-import VideoList from './components/video/VideoList';
+import VideoPage from './components/video/VideoPage.jsx';
 import VideoUpload from './components/video/VideoUpload';
 import VideoDetail from './components/video/VideoDetail';
 import NotFound from './components/layout/NotFound';
@@ -83,7 +83,7 @@ function App() {
 
             {/* Protected Routes */}
             <Route element={<ProtectedRoute />}>
-              <Route path="/dashboard" element={<VideoList />} />
+              <Route path="/dashboard" element={<VideoPage />} />
               <Route path="/upload" element={<VideoUpload />} />
               <Route path="/videos/:id" element={<VideoDetail />} />
               <Route path="/profile" element={<Profile />} /> {/* 新增个人资料路由 */}

@@ -204,31 +204,35 @@ const VideoUpload = () => {
   };
 
   // 获取背景库
+  // 修改fetchBackgrounds函数
   const fetchBackgrounds = async () => {
-    try {
-      setBackgroundsLoading(true);
-      const data = await getAllBackgrounds();
-      setBackgrounds(Array.isArray(data) ? data : (data?.backgrounds || []));
-    } catch (error) {
-      console.error('获取背景库失败:', error);
-    } finally {
-      setBackgroundsLoading(false);
-    }
-  };
+  try {
+    setBackgroundsLoading(true);
+    const data = await getAllBackgrounds();
+    setBackgrounds(data.list || []);
+    // 如果需要分页，可以添加hasMoreBackgrounds状态
+    return data;
+  } catch (error) {
+    console.error('获取背景库失败:', error);
+  } finally {
+    setBackgroundsLoading(false);
+  }
+};
 
-  // 获取视频库
-  const fetchVideos = async () => {
-    try {
-      setVideosLoading(true);
-
-      const data = await getAllVideos();
-      setVideos(Array.isArray(data) ? data : (data?.videos || []));
-    } catch (error) {
-      console.error('获取视频库失败:', error);
-    } finally {
-      setVideosLoading(false);
-    }
-  };
+// 修改fetchVideos函数
+const fetchVideos = async () => {
+  try {
+    setVideosLoading(true);
+    const data = await getAllVideos();
+    setVideos(data.list || []);
+    // 如果需要分页，可以添加hasMoreVideos状态
+    return data;
+  } catch (error) {
+    console.error('获取视频库失败:', error);
+  } finally {
+    setVideosLoading(false);
+  }
+};
 
   // 从背景库选择背景
   const handleSelectFromLibrary = (background) => {
