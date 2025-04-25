@@ -26,6 +26,8 @@ import {
 } from '@mui/icons-material';
 import { getVideoById, uploadBackgroundImage, deleteVideo } from '../../services/videoService';
 
+import { API_BASE_URL } from '../../config';
+
 const statusColors = {
   pending: 'warning',
   processing: 'info',
@@ -232,7 +234,14 @@ const VideoDetail = () => {
                   component="video"
                   controls
                   sx={{ width: '100%', maxHeight: '400px' }}
-                  src={`http://localhost:5001/${video.finalVideo || video.originalVideo}`}
+                  // 修改所有媒体资源路径
+                  src={`${API_BASE_URL}/${video.finalVideo || video.originalVideo}`}
+                  
+                  // 下载链接
+                  href={`${API_BASE_URL}/${video.finalVideo || video.originalVideo}`}
+                  
+                  // 背景图片
+                  image={`${API_BASE_URL}/${video.backgroundImage}`}
                 />
               </Card>
               
@@ -241,7 +250,7 @@ const VideoDetail = () => {
                   variant="contained"
                   color="primary"
                   startIcon={<CloudDownload />}
-                  href={`http://localhost:5001/${video.finalVideo || video.originalVideo}`}
+                  href={`${API_BASE_URL}/${video.finalVideo || video.originalVideo}`}
                   download
                   disabled={!video.finalVideo && !video.originalVideo}
                 >
@@ -330,7 +339,7 @@ const VideoDetail = () => {
                       <CardMedia
                         component="img"
                         sx={{ height: '200px', objectFit: 'contain' }}
-                        image={`http://localhost:5001/${video.backgroundImage}`}
+                        image={`${API_BASE_URL}/${video.backgroundImage}`}
                         alt="背景图片"
                       />
                     </Card>
@@ -382,4 +391,4 @@ const VideoDetail = () => {
   );
 };
 
-export default VideoDetail; 
+export default VideoDetail;

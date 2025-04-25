@@ -1,9 +1,7 @@
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
+import { API_BASE_URL, API_URL, API_URL_JAVA } from '../config';
 
-// 从环境变量获取API URL，默认为localhost:5001
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5001';
 
 // 创建axios实例
 const api = axios.create({
@@ -12,8 +10,27 @@ const api = axios.create({
     'Content-Type': 'application/json'
   }
 });
+// 创建axios实例
+// 修改apiJava实例配置
+const apiJava = axios.create({
+  baseURL: API_URL_JAVA,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
 
 // 请求拦截器添加token
+// 在apiJava实例中添加请求拦截器
+apiJava.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -110,7 +127,7 @@ export const uploadVideo = async (file, name, onProgress) => {
     if (name) {
       formData.append('name', name);
     }
-    
+
     const response = await api.post('/videos/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
@@ -122,7 +139,7 @@ export const uploadVideo = async (file, name, onProgress) => {
         }
       }
     });
-    
+
     return response.data;
   } catch (error) {
     console.error('上传视频失败:', error);
@@ -135,13 +152,13 @@ export const uploadBackgroundImage = async (videoId, file) => {
   try {
     const formData = new FormData();
     formData.append('image', file);
-    
+
     const response = await api.post(`/videos/${videoId}/background`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
     });
-    
+
     return response.data;
   } catch (error) {
     console.error('上传背景图片失败:', error);
@@ -167,6 +184,38 @@ export const createTask = async (videoId, options) => {
       videoId,
       ...options
     });
+    return response.data;
+  } catch (error) {
+    console.error('创建任务失败:', error);
+    throw error;
+  }
+};
+// 创建视频处理任务
+// 确保createTaskNew使用正确的端点路径
+export const createTaskV2 = async (params) => {
+  try {
+    const formData = new FormData();
+    // 将params对象中的每个属性添加到formData
+    Object.keys(params).forEach(key => {
+      if (params[key] !== undefined && params[key] !== null) {
+        // 特殊处理videoId和backgroundId，确保是数字
+        if (key === 'videoId' || key === 'backgroundId') {
+          formData.append(key, Number(params[key]));
+        } else {
+          formData.append(key, params[key]);
+        }
+      }
+    });
+
+    const response = await apiJava.post('/task/create', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    if(response?.data?.code!== 0){
+      throw new Error(response?.data?.msg || '创建任务失败');
+    }
+
     return response.data;
   } catch (error) {
     console.error('创建任务失败:', error);
@@ -202,6 +251,22 @@ export const getAllTasks = async () => {
     const response = await api.get('/tasks');
     // 确保返回数组
     return Array.isArray(response.data) ? response.data : (response.data?.tasks || []);
+  } catch (error) {
+    console.error('获取任务列表失败:', error);
+    throw error;
+  }
+};
+// 获取所有任务
+export const getAllTasksV2 = async (params) => {
+  try {
+    const {data} = await apiJava.post('/task/list', params);
+
+    if(data?.code !== 0){
+      throw new Error(data?.msg || '获取任务列表失败');
+    }
+
+    // 确保返回数组
+    return data?.data || [];
   } catch (error) {
     console.error('获取任务列表失败:', error);
     throw error;
@@ -250,13 +315,13 @@ export const uploadBackgroundToLibrary = async (file, name = '') => {
     if (name) {
       formData.append('name', name);
     }
-    
+
     const response = await api.post('/backgrounds', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
     });
-    
+
     return response.data;
   } catch (error) {
     console.error('上传背景到背景库失败:', error);
@@ -293,4 +358,4 @@ export default {
   getAllBackgrounds,
   uploadBackgroundToLibrary,
   deleteBackground
-}; 
+};

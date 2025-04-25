@@ -19,6 +19,8 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import VideoList from './components/video/VideoList';
 import VideoUpload from './components/video/VideoUpload';
 import VideoDetail from './components/video/VideoDetail';
+import NotFound from './components/layout/NotFound';
+import Profile from './components/auth/Profile';
 
 // Create theme
 const theme = createTheme({
@@ -78,13 +80,17 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            
+
             {/* Protected Routes */}
             <Route element={<ProtectedRoute />}>
               <Route path="/dashboard" element={<VideoList />} />
               <Route path="/upload" element={<VideoUpload />} />
               <Route path="/videos/:id" element={<VideoDetail />} />
+              <Route path="/profile" element={<Profile />} /> {/* 新增个人资料路由 */}
             </Route>
+
+            {/* 404 页面 */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Router>
       </AuthProvider>
