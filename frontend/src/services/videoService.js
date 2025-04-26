@@ -206,7 +206,7 @@ export const createTaskV2 = async (params) => {
       if (params[key] !== undefined && params[key] !== null) {
         // 特殊处理videoId和backgroundId，确保是数字
         if (key === 'videoId' || key === 'backgroundId') {
-          formData.append(key, Number(params[key]));
+          formData.append(key, String(params[key]));
         } else {
           formData.append(key, params[key]);
         }
@@ -346,7 +346,8 @@ export const deleteBackground = async (id) => {
   try {
     const res = await api.delete(`/backgrounds/${id}`);
     const { background, message } = res?.data;
-    if(background?.id){
+    if (background?.id) {
+
      return background
     }
     else{
