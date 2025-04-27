@@ -57,7 +57,7 @@ const VideoUpload = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [videoId, setVideoId] = useState();
-  const [bgId, setBGid] = useState();
+  const [bgObj, setBGObj] = useState(null);
   const [applyBackground, setApplyBackground] = useState(true);
   const [videoInfo, setVideoInfo] = useState();
   const [selectedModel, setSelectedModel] = useState('normal');
@@ -76,27 +76,28 @@ const VideoUpload = () => {
   const navigate = useNavigate();
 
   // 加载背景库和视频库
-  useEffect(() => {
-    fetchBackgrounds();
-    fetchVideos();
-  }, []);
+  // useEffect(() => {
+  //   fetchBackgrounds();
+  //   fetchVideos();
+  // }, []);
 
   // 当视频加载完成时获取视频信息
   useEffect(() => {
     if (videoRef.current && videoPreview) {
       videoRef.current.onloadedmetadata = () => {
         const video = videoRef.current;
+
         setVideoInfo({
           duration: video.duration.toFixed(2), // 秒
           width: video.videoWidth,
           height: video.videoHeight,
-          size: selectedVideo ? (selectedVideo.size / (1024 * 1024)).toFixed(2) : 0, // MB
-          name: selectedVideo ? selectedVideo.name : '',
-          type: selectedVideo ? selectedVideo.type : ''
+          size: selectedVideo ? (selectedVideo.size / (1024 * 1024)).toFixed(2) : videoInfo.size, // MB
+          name: selectedVideo ? selectedVideo.name : videoInfo.name,
+          type: selectedVideo ? selectedVideo.type : videoInfo.type
         });
       };
     }
-  }, [videoPreview, selectedVideo]);
+  }, [videoPreview, selectedVideo,videoInfo]);
 
   // 处理视频文件选择
   const handleVideoChange = async (event) => {
@@ -135,7 +136,7 @@ const VideoUpload = () => {
   const handleBackgroundChange = (event) => {
     const file = event.target.files[0];
     if (file) {
-      setBGid(undefined)
+      setBGObj(null)
       setSelectedBackground(file);
       setBackgroundPreview(URL.createObjectURL(file));
     }
@@ -171,7 +172,7 @@ const VideoUpload = () => {
         videoId,
         modelType: selectedModel,
         backgroundFile: selectedBackground,
-        backgroundId: bgId,
+        backgroundId: bgObj?.id,
         userId: currentUser.id
         // applyBackground: applyBackground &&!!selectedBackground
       }
@@ -217,30 +218,30 @@ const VideoUpload = () => {
   }
 };
 
-// 修改fetchVideos函数
-const fetchVideos = async () => {
-  try {
-    setVideosLoading(true);
-    const data = await getAllVideos({
-      // pageNum: page,
-      // pageSize: size,
-      userId: currentUser.id
-    });
-    setVideos(data.list || []);
-    // 如果需要分页，可以添加hasMoreVideos状态
-    return data;
-  } catch (error) {
-    console.error('获取视频库失败:', error);
-  } finally {
-    setVideosLoading(false);
-  }
-};
+// // 修改fetchVideos函数
+// const fetchVideos = async () => {
+//   try {
+//     setVideosLoading(true);
+//     const data = await getAllVideos({
+//       pageNum: page,
+//       pageSize: size,
+//       userId: currentUser.id
+//     });
+//     setVideos(data.list || []);
+//     // 如果需要分页，可以添加hasMoreVideos状态
+//     return data;
+//   } catch (error) {
+//     console.error('获取视频库失败:', error);
+//   } finally {
+//     setVideosLoading(false);
+//   }
+// };
 
   // 从背景库选择背景
   const handleSelectFromLibrary = (background) => {
     console.log('hxy--------------- background', background)
 
-    setBGid(background.id);
+    setBGObj(background);
     setSelectedBackground(null);
     // 修改背景图片路径
     const imagePath = `${API_BASE_URL}/${background.path}`;
@@ -280,8 +281,8 @@ const fetchVideos = async () => {
 
     // 模拟设置视频信息
     setVideoInfo({
-      name: video.originalVideo.split('/').pop() || 'video.mp4',
-      size: '未知',
+      name: video.name ? video.name : (video.originalVideo.split('/').pop() || 'video.mp4'),
+      size: (video.size / (1024 * 1024)).toFixed(2), // MB,
       type: '未知',
       duration: '未知',
       width: '未知',
@@ -427,21 +428,24 @@ const fetchVideos = async () => {
                           image={backgroundPreview}
                           sx={{ height: 300, objectFit: 'contain' }}
                         />
-                      </Card>
-                      {selectedBackground && (
+                      {selectedBackground || bgObj && (
                         <Typography
                           variant='body2'
                           color='textSecondary'
                           sx={{ mt: 1, textAlign: 'center' }}
                         >
-                          {selectedBackground.name}
-                          {selectedBackground.size &&
+                          {selectedBackground?.name || bgObj?.name}
+                          {selectedBackground?.size ?
                             ` (${(
                               selectedBackground.size /
                               (1024 * 1024)
-                            ).toFixed(2)} MB)`}
+                              ).toFixed(2)} MB)` : ` (${(
+                                bgObj.size /
+                                (1024 * 1024)
+                              ).toFixed(2)} MB)`}
                         </Typography>
-                      )}
+                          )}
+                        </Card>
                     </Box>
                   ) : (
                     <Alert severity='info' sx={{ mb: 3 }}>
@@ -499,7 +503,7 @@ const fetchVideos = async () => {
                 disabled={
                   (!selectedVideo && !videoId) ||
                   loading ||
-                  (!selectedBackground && !bgId)
+                  (!selectedBackground && !bgObj?.id)
                 }
                 sx={{ minWidth: 200 }}
               >
