@@ -36,6 +36,8 @@ import { useScrollToError } from '../../hooks/useScrollToError';
 
 
 import { AuthContext } from '../../contexts/AuthContext';
+import VideoListDialog from './VideoListDialog';
+import BackgroundListDialog from './BackgroundListDialog';
 
 // 可用的分割模型
 const segmentationModels = [
@@ -268,6 +270,8 @@ const fetchVideos = async () => {
 
   // 从视频库选择视频
   const handleSelectVideoFromLibrary = (video) => {
+
+
     setSelectedVideo(null);
     setVideoId(video.id);
 
@@ -506,108 +510,11 @@ const fetchVideos = async () => {
         )}
       </Paper>
 
-      {/* 背景库选择对话框 */}
-      <Dialog
-        open={showBackgroundDialog}
-        onClose={() => setShowBackgroundDialog(false)}
-        maxWidth='md'
-        fullWidth
-      >
-        <DialogTitle>选择背景</DialogTitle>
-        <DialogContent>
-          {backgroundsLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : backgrounds.length === 0 ? (
-            <Box sx={{ textAlign: 'center', py: 4 }}>
-              <Typography variant='body1' color='textSecondary'>
-                背景库中没有可用的背景图片。
-              </Typography>
-            </Box>
-          ) : (
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              {backgrounds.map((background) => (
-                <Grid item xs={6} sm={4} md={3} key={background.id}>
-                  <Card
-                    sx={{
-                      cursor: 'pointer',
-                      '&:hover': { boxShadow: 6 }
-                    }}
-                    onClick={() => handleSelectFromLibrary(background)}
-                  >
-                    <CardMedia
-                      component='img'
-                      height='120'
-                      image={`${API_BASE_URL}/${background.path}`}
-                      alt={background.name || '背景图片'}
-                    />
-                    <CardContent sx={{ py: 1 }}>
-                      <Typography variant='body2' noWrap>
-                        {background.name}
-                        {background.name || `背景 ${background.id}`}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
-          )}
-        </DialogContent>
-      </Dialog>
-
       {/* 视频库选择对话框 */}
-      <Dialog
-        open={showVideoDialog}
-        onClose={() => setShowVideoDialog(false)}
-        maxWidth='md'
-        fullWidth
-      >
-        <DialogTitle>选择视频</DialogTitle>
-        <DialogContent>
-          {videosLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : videos.length === 0 ? (
-            <Box sx={{ textAlign: 'center', py: 4 }}>
-              <Typography variant='body1' color='textSecondary'>
-                视频库中没有可用的视频。
-              </Typography>
-            </Box>
-          ) : (
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              {videos.map((video) => (
-                <Grid item xs={12} sm={6} md={4} key={video.id}>
-                  <Card
-                    sx={{
-                      cursor: 'pointer',
-                      '&:hover': { boxShadow: 6 }
-                    }}
-                    onClick={() => handleSelectVideoFromLibrary(video)}
-                  >
-                    <CardMedia
-                      component='video'
-                      height='140'
-                      image={`${API_BASE_URL}/${video.originalVideo}`}
-                    />
-                    <CardContent sx={{ py: 1 }}>
-                      <Typography variant='body2' noWrap>
-                        {video.originalVideo.split('/').pop() ||
-                          `视频 ${video.id}`}
-                      </Typography>
-                      <Typography variant='caption' color='textSecondary'>
-                        添加时间:{' '}
-                        {new Date(video.createdAt).toLocaleDateString()}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
-          )}
-        </DialogContent>
-      </Dialog>
+      <BackgroundListDialog open={showBackgroundDialog} handleCloseClick={setShowBackgroundDialog} handleSelectClick={handleSelectFromLibrary} />
+
+      <VideoListDialog open={showVideoDialog} handleCloseClick={setShowVideoDialog} handleSelectClick={handleSelectVideoFromLibrary} />
+
     </Container>
   )
 };
