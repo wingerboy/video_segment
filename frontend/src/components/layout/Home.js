@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Box,
@@ -9,7 +9,6 @@ import {
   Paper,
   Card,
   CardContent,
-  CardMedia,
 } from '@mui/material';
 import {
   VideoLibrary,
@@ -19,8 +18,19 @@ import {
   Movie,
   PhotoLibrary,
 } from '@mui/icons-material';
+import { AuthContext } from '../../contexts/AuthContext';
+import { Tooltip } from '@mui/material';
 
 const Home = () => {
+  const { currentUser } = useContext(AuthContext);
+
+  const onHandleClick = () => {
+    if (!currentUser) {
+      window.open('/register', '_self');
+      return;
+    }
+    window.open('/upload', '_self');
+  }
   return (
     <Box>
       {/* Hero Section */}
@@ -44,23 +54,31 @@ const Home = () => {
               </Typography>
               <Box sx={{ display: 'flex', gap: 2 }}>
                 <Button
-                  component={Link}
-                  to="/register"
+                  onClick={onHandleClick}
                   variant="contained"
                   color="secondary"
                   size="large"
                 >
                   开始使用
                 </Button>
-                <Button
-                  component={Link}
-                  to="/login"
-                  variant="outlined"
-                  color="inherit"
-                  size="large"
-                >
-                  登录
-                </Button>
+                <div>
+                  <Tooltip
+                    title={currentUser?.id ? '您已登录，可以直接开始使用' : ''}
+                  >
+                    <span>
+                      <Button
+                        component={Link}
+                        to="/login"
+                        variant="outlined"
+                        color="inherit"
+                        size="large"
+                        disabled={currentUser?.id}
+                      >
+                        登录
+                      </Button>
+                    </span>
+                  </Tooltip>
+                </div>
               </Box>
             </Grid>
             <Grid item xs={12} md={6}>
@@ -260,8 +278,7 @@ const Home = () => {
 
           <Box sx={{ textAlign: 'center', mt: 6 }}>
             <Button
-              component={Link}
-              to="/register"
+              onClick={onHandleClick}
               variant="contained"
               color="primary"
               size="large"
@@ -284,4 +301,4 @@ const Home = () => {
   );
 };
 
-export default Home; 
+export default Home;

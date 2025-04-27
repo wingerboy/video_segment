@@ -48,7 +48,17 @@ export const getFullUrl = (path) => {
   if (path.startsWith('http')) return path;
   return `${API_BASE_URL}/${path}`;
 };
-
+// 获取所有视频
+export const getAllVideosV1 = async () => {
+  try {
+    const response = await api.get('/videos');
+    // 确保返回数组
+    return Array.isArray(response.data) ? response.data : (response.data?.videos || []);
+  } catch (error) {
+    console.error('获取视频列表失败:', error);
+    throw error;
+  }
+};
 // 获取所有视频
 export const getAllVideos = async (params) => {
   try {

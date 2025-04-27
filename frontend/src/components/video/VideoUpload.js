@@ -173,10 +173,6 @@ const VideoUpload = () => {
         userId: currentUser.id
         // applyBackground: applyBackground &&!!selectedBackground
       }
-
-      console.log('hxy--------------- currentUser, params', currentUser, params)
-
-
       // 开始视频分割处理
       // await startVideoSegmentation(currentVideoId, selectedModel);
 
@@ -223,7 +219,11 @@ const VideoUpload = () => {
 const fetchVideos = async () => {
   try {
     setVideosLoading(true);
-    const data = await getAllVideos();
+    const data = await getAllVideos({
+      // pageNum: page,
+      // pageSize: size,
+      userId: currentUser.id
+    });
     setVideos(data.list || []);
     // 如果需要分页，可以添加hasMoreVideos状态
     return data;
