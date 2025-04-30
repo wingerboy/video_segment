@@ -41,11 +41,13 @@ router.post('/register', async (req, res) => {
     const user = await User.create({
       username,
       email,
-      password
+      password,
+      userStatus: 'active',
+      role: 'user'
     });
     
     // Generate JWT token
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
       expiresIn: '7d'
     });
     
@@ -54,7 +56,10 @@ router.post('/register', async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        role: user.role,
+        userStatus: user.userStatus,
+        balance: user.balance
       }
     });
   } catch (error) {
@@ -68,9 +73,14 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
     
     // Find user by email
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findByEmail(email);
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
+    }
+    
+    // Check if user is banned
+    if (user.userStatus === 'banned') {
+      return res.status(403).json({ message: 'Your account has been banned' });
     }
     
     // Check password
@@ -80,7 +90,7 @@ router.post('/login', async (req, res) => {
     }
     
     // Generate JWT token
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
       expiresIn: '7d'
     });
     
@@ -89,7 +99,10 @@ router.post('/login', async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        role: user.role,
+        userStatus: user.userStatus,
+        balance: user.balance
       }
     });
   } catch (error) {
@@ -104,7 +117,13 @@ router.get('/me', authenticate, async (req, res) => {
       user: {
         id: req.user.id,
         username: req.user.username,
-        email: req.user.email
+        email: req.user.email,
+        role: req.user.role,
+        userStatus: req.user.userStatus,
+        balance: req.user.balance,
+        rechargeAmount: req.user.rechargeAmount,
+        consumeAmount: req.user.consumeAmount,
+        transferAmount: req.user.transferAmount
       }
     });
   } catch (error) {

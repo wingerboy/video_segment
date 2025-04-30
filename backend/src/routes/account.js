@@ -1,21 +1,21 @@
 const express = require('express');
 const router = express.Router();
-const { rechargeAccount, consumeAccount, refundAccount, getUserTransactions } = require('../services/accountService');
+const { rechargeAccount, consumeAccount, refundAccount, transferAccount, getUserTransactions } = require('../services/accountService');
 const { authenticate, isAdmin } = require('../middleware/auth');
 
 /**
  * @api {get} /account/transactions 获取用户交易记录
  * @apiName GetUserTransactions
  * @apiGroup Account
- * @apiParam {String} [type] 交易类型过滤：recharge, consume, refund
+ * @apiParam {String} [transactionType] 交易类型过滤：recharge, consume, refund, transfer
  * @apiSuccess {Array} transactions 交易记录列表
  */
 router.get('/transactions', authenticate, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { type } = req.query;
+    const email = req.user.email;
+    const { transactionType } = req.query;
     
-    const transactions = await getUserTransactions(userId, type);
+    const transactions = await getUserTransactions(email, transactionType);
     
     res.status(200).json({
       success: true,
@@ -35,15 +35,15 @@ router.get('/transactions', authenticate, async (req, res) => {
  * @apiName RechargeAccount
  * @apiGroup Account
  * @apiParam {Number} amount 充值金额
- * @apiParam {String} [externalTransactionId] 外部交易ID
+ * @apiParam {String} [interfaceAddress] 接口地址
  * @apiParam {String} [description] 交易描述
  * @apiSuccess {Object} transaction 交易记录
  * @apiSuccess {Object} user 更新后的用户信息
  */
 router.post('/recharge', authenticate, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { amount, externalTransactionId, description } = req.body;
+    const email = req.user.email;
+    const { amount, interfaceAddress, description } = req.body;
     
     if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
       return res.status(400).json({
@@ -53,9 +53,9 @@ router.post('/recharge', authenticate, async (req, res) => {
     }
     
     const result = await rechargeAccount(
-      userId, 
+      email, 
       parseFloat(amount), 
-      externalTransactionId,
+      interfaceAddress,
       description
     );
     
@@ -78,14 +78,15 @@ router.post('/recharge', authenticate, async (req, res) => {
  * @apiGroup Account
  * @apiParam {Number} amount 消费金额
  * @apiParam {Number} [taskId] 关联任务ID
+ * @apiParam {String} [interfaceAddress] 接口地址
  * @apiParam {String} [description] 交易描述
  * @apiSuccess {Object} transaction 交易记录
  * @apiSuccess {Object} user 更新后的用户信息
  */
 router.post('/consume', authenticate, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { amount, taskId, description } = req.body;
+    const email = req.user.email;
+    const { amount, taskId, interfaceAddress, description } = req.body;
     
     if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
       return res.status(400).json({
@@ -95,9 +96,10 @@ router.post('/consume', authenticate, async (req, res) => {
     }
     
     const result = await consumeAccount(
-      userId, 
+      email, 
       parseFloat(amount), 
       taskId,
+      interfaceAddress,
       description
     );
     
@@ -118,28 +120,30 @@ router.post('/consume', authenticate, async (req, res) => {
  * @api {post} /account/refund 退款到账户
  * @apiName RefundAccount
  * @apiGroup Account
- * @apiParam {Number} userId 用户ID (仅管理员可指定)
+ * @apiParam {String} email 用户邮箱 (仅管理员可指定)
  * @apiParam {Number} amount 退款金额
  * @apiParam {Number} [taskId] 关联任务ID
+ * @apiParam {String} [interfaceAddress] 接口地址
  * @apiParam {String} [description] 交易描述
  * @apiSuccess {Object} transaction 交易记录
  * @apiSuccess {Object} user 更新后的用户信息
  */
 router.post('/refund', authenticate, isAdmin, async (req, res) => {
   try {
-    const { userId, amount, taskId, description } = req.body;
+    const { email, amount, taskId, interfaceAddress, description } = req.body;
     
-    if (!userId || !amount || isNaN(amount) || parseFloat(amount) <= 0) {
+    if (!email || !amount || isNaN(amount) || parseFloat(amount) <= 0) {
       return res.status(400).json({
         success: false,
-        message: '请提供有效的用户ID和退款金额'
+        message: '请提供有效的用户邮箱和退款金额'
       });
     }
     
     const result = await refundAccount(
-      userId, 
+      email, 
       parseFloat(amount), 
       taskId,
+      interfaceAddress,
       description
     );
     
@@ -157,26 +161,72 @@ router.post('/refund', authenticate, isAdmin, async (req, res) => {
 });
 
 /**
- * @api {get} /account/admin/transactions/:userId 管理员获取指定用户交易记录
- * @apiName AdminGetUserTransactions
+ * @api {post} /account/transfer 转账到其他账户
+ * @apiName TransferAccount
  * @apiGroup Account
- * @apiParam {String} userId 用户ID
- * @apiParam {String} [type] 交易类型过滤：recharge, consume, refund
- * @apiSuccess {Array} transactions 交易记录列表
+ * @apiParam {String} toEmail 接收方用户邮箱
+ * @apiParam {Number} amount 转账金额
+ * @apiParam {String} [interfaceAddress] 接口地址
+ * @apiParam {String} [description] 交易描述
+ * @apiSuccess {Object} fromTransaction 转出交易记录
+ * @apiSuccess {Object} toTransaction 转入交易记录
+ * @apiSuccess {Object} fromUser 转出用户信息
+ * @apiSuccess {Object} toUser 转入用户信息
  */
-router.get('/admin/transactions/:userId', authenticate, isAdmin, async (req, res) => {
+router.post('/transfer', authenticate, async (req, res) => {
   try {
-    const { userId } = req.params;
-    const { type } = req.query;
+    const fromEmail = req.user.email;
+    const { toEmail, amount, interfaceAddress, description } = req.body;
     
-    if (!userId) {
+    if (!toEmail || !amount || isNaN(amount) || parseFloat(amount) <= 0) {
       return res.status(400).json({
         success: false,
-        message: '请提供有效的用户ID'
+        message: '请提供有效的接收方邮箱和转账金额'
       });
     }
     
-    const transactions = await getUserTransactions(userId, type);
+    const result = await transferAccount(
+      fromEmail,
+      toEmail,
+      parseFloat(amount),
+      interfaceAddress,
+      description
+    );
+    
+    res.status(200).json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('账户转账失败:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || '账户转账失败'
+    });
+  }
+});
+
+/**
+ * @api {get} /account/admin/transactions/:email 管理员获取指定用户交易记录
+ * @apiName AdminGetUserTransactions
+ * @apiGroup Account
+ * @apiParam {String} email 用户邮箱
+ * @apiParam {String} [transactionType] 交易类型过滤：recharge, consume, refund, transfer
+ * @apiSuccess {Array} transactions 交易记录列表
+ */
+router.get('/admin/transactions/:email', authenticate, isAdmin, async (req, res) => {
+  try {
+    const { email } = req.params;
+    const { transactionType } = req.query;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: '请提供有效的用户邮箱'
+      });
+    }
+    
+    const transactions = await getUserTransactions(email, transactionType);
     
     res.status(200).json({
       success: true,

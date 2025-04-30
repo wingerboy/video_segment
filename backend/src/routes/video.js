@@ -6,7 +6,13 @@ const crypto = require('crypto');
 const dotenv = require('dotenv');
 const { authenticate } = require('../middleware/auth');
 const { Video, sequelize } = require('../models');
-const { extractVideoQueue, applyBackgroundQueue } = require('../services/queue');
+const { extractVideoQueue } = require('../services/queue');
+const { Op } = require('sequelize'); // 直接从sequelize导入Op操作符
+const ffmpeg = require('fluent-ffmpeg');
+const ffprobe = require('ffprobe-static');
+
+// 设置ffprobe路径
+ffmpeg.setFfprobePath(ffprobe.path);
 
 // 加载环境变量
 dotenv.config();
@@ -14,21 +20,35 @@ dotenv.config();
 const router = express.Router();
 
 // 获取配置的上传路径
-const UPLOAD_BASE_DIR = process.env.UPLOAD_BASE_DIR || 'uploads';
 const UPLOAD_VIDEOS_DIR = process.env.UPLOAD_VIDEOS_DIR || 'uploads/videos';
+const UPLOAD_URL_PATH = process.env.UPLOAD_URL_PATH || 'videos'; // 虚拟路径，用于URL访问
 const UPLOAD_FILE_SIZE_LIMIT = parseInt(process.env.UPLOAD_FILE_SIZE_LIMIT || '100'); // 默认100MB
+
+console.log('视频上传配置:');
+console.log(`- 物理路径配置: ${UPLOAD_VIDEOS_DIR}`);
+console.log(`- 虚拟URL路径: ${UPLOAD_URL_PATH}`);
+console.log(`- 文件大小限制: ${UPLOAD_FILE_SIZE_LIMIT}MB`);
 
 // 确保上传目录存在
 const ensureDir = (dirPath) => {
-  const absolutePath = path.join(__dirname, '../../', dirPath);
+  // 判断是否为绝对路径
+  const absolutePath = path.isAbsolute(dirPath) 
+    ? dirPath // 如果是绝对路径，直接使用
+    : path.join(__dirname, '../../', dirPath); // 如果是相对路径，转为绝对路径
+  
+  console.log('上传目录绝对路径:', absolutePath);
+  
   if (!fs.existsSync(absolutePath)) {
     fs.mkdirSync(absolutePath, { recursive: true });
+    console.log('创建上传目录:', absolutePath);
+  } else {
+    console.log('上传目录已存在:', absolutePath);
   }
+  
   return absolutePath;
 };
 
 // 创建上传目录
-ensureDir(UPLOAD_BASE_DIR);
 ensureDir(UPLOAD_VIDEOS_DIR);
 
 // 预检请求的处理
@@ -84,13 +104,61 @@ const calculateMD5 = (filePath) => {
   });
 };
 
-// 获取视频信息（此处简化处理，实际应使用ffprobe等工具）
+// 获取视频信息（使用ffprobe获取真实数据）
 const getVideoInfo = async (filePath) => {
-  // 在实际应用中应使用如ffprobe等工具获取视频信息
-  return {
-    dimensions: '1920x1080',  // 默认尺寸
-    frameCount: 300           // 默认帧数
-  };
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(filePath, (err, metadata) => {
+      if (err) {
+        console.error('获取视频信息失败:', err);
+        // 如果获取失败，返回默认值
+        return resolve({
+          dimensions: '1920x1080',
+          frameCount: 300,
+          duration: 0,
+          framerate: 30,
+          size: 0,
+          codec: 'unknown'
+        });
+      }
+      
+      try {
+        // 从metadata中提取视频流
+        const videoStream = metadata.streams.find(s => s.codec_type === 'video');
+        const format = metadata.format;
+        
+        const dimensions = videoStream ? `${videoStream.width}x${videoStream.height}` : '未知';
+        const frameRate = videoStream?.r_frame_rate ? 
+          eval(videoStream.r_frame_rate).toFixed(2) : // 计算像 "30000/1001" 这样的帧率表达式
+          30;
+        
+        // 估算帧数 = 时长(秒) * 帧率
+        const duration = format?.duration || 0;
+        const frameCount = Math.round(duration * frameRate) || 300;
+        
+        const result = {
+          dimensions,
+          frameCount,
+          duration: duration.toFixed(2),
+          framerate: frameRate,
+          size: (format?.size / (1024 * 1024)).toFixed(2), // MB
+          codec: videoStream?.codec_name || 'unknown'
+        };
+        
+        console.log('视频信息:', result);
+        resolve(result);
+      } catch (error) {
+        console.error('解析视频信息失败:', error);
+        resolve({
+          dimensions: '1920x1080',
+          frameCount: 300,
+          duration: 0,
+          framerate: 30,
+          size: 0,
+          codec: 'unknown'
+        });
+      }
+    });
+  });
 };
 
 // Upload original video
@@ -101,7 +169,13 @@ router.post('/upload', authenticate, upload.single('video'), async (req, res) =>
     }
     
     const filePath = req.file.path;
-    const relativePath = path.relative(path.join(__dirname, '../../'), filePath).replace(/\\/g, '/');
+    
+    // 使用虚拟路径映射：不存储物理路径，只存储虚拟URL路径
+    const fileName = req.file.filename;
+    const virtualPath = `${UPLOAD_URL_PATH}/${fileName}`; // 使用虚拟路径格式
+    
+    console.log('文件物理路径:', filePath);
+    console.log('存储的虚拟路径:', virtualPath);
     
     // 获取视频名称，如果提供了自定义名称则使用，否则使用原始文件名
     const videoName = req.body.name || req.file.originalname;
@@ -109,119 +183,75 @@ router.post('/upload', authenticate, upload.single('video'), async (req, res) =>
     // 计算MD5哈希值
     const md5Hash = await calculateMD5(filePath);
     
-    // 获取视频信息
+    // 获取真实的视频信息
     const videoInfo = await getVideoInfo(filePath);
     
-    // Create new video entry
+    // Create new video entry with enhanced information
     const video = await Video.create({
-      userId: req.user.id,
-      name: videoName, // 保存视频名称
-      md5Hash: md5Hash,
-      originalVideo: relativePath,
-      size: req.file.size,
-      dimensions: videoInfo.dimensions,
-      frameCount: videoInfo.frameCount,
-      status: 'active',
-      usageCount: 0
-    });
-    
-    // Add to extract video queue
-    await extractVideoQueue.add({
-      videoId: video.id
+      email: req.user.email,
+      oriVideoName: videoName,
+      oriVideoMd5: md5Hash,
+      oriVideoPath: virtualPath, // 存储虚拟路径，用于URL访问
+      oriVideoSize: Math.ceil(req.file.size / (1024 * 1024)), // 转换为MB并向上取整
+      oriVideoDim: videoInfo.dimensions,
+      oriVideoFrameCnt: videoInfo.frameCount,
+      oriVideoDuration: videoInfo.duration, // 新增：视频时长(秒)
+      oriVideoFrameRate: videoInfo.framerate, // 新增：视频帧率
+      oriVideoCodec: videoInfo.codec, // 新增：视频编码格式
+      oriVideoStatus: 'exists',
+      oriVideoUsageCnt: 0
     });
     
     res.status(201).json({
       message: 'Video uploaded successfully',
       video: {
         id: video.id,
-        name: video.name, // 返回保存的名称
-        originalVideo: video.originalVideo,
-        md5Hash: video.md5Hash,
-        size: video.size,
-        dimensions: video.dimensions,
-        status: video.status
+        oriVideoName: video.oriVideoName,
+        oriVideoPath: video.oriVideoPath, // 返回虚拟路径，前端据此构建完整URL
+        oriVideoSize: video.oriVideoSize,
+        oriVideoDim: video.oriVideoDim,
+        oriVideoFrameCnt: video.oriVideoFrameCnt,
+        oriVideoDuration: video.oriVideoDuration,
+        oriVideoFrameRate: video.oriVideoFrameRate,
+        oriVideoCodec: video.oriVideoCodec
       }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Video upload failed', error: error.message });
-  }
-});
-
-// Upload background image
-router.post('/background/:id', authenticate, upload.single('image'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'No image file uploaded' });
-    }
-    
-    const video = await Video.findOne({ 
-      where: { 
-        id: req.params.id, 
-        userId: req.user.id,
-        status: { 
-          [sequelize.Op.notIn]: ['deleted', 'expired'] 
-        }
+    console.error('视频上传失败:', error);
+    // 如果上传过程中出错，尝试删除已上传的文件
+    if (req.file && req.file.path) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (unlinkError) {
+        console.error('删除上传文件失败:', unlinkError);
       }
-    });
-    
-    if (!video) {
-      return res.status(404).json({ message: 'Video not found' });
     }
-    
-    const filePath = req.file.path;
-    const relativePath = path.relative(path.join(__dirname, '../../'), filePath).replace(/\\/g, '/');
-    
-    // Save background image path
-    video.backgroundImage = relativePath;
-    video.usageCount += 1;
-    await video.save();
-    
-    // If extracted foreground exists, queue apply background job
-    if (video.extractedForeground) {
-      await applyBackgroundQueue.add({
-        videoId: video.id
-      });
-    }
-    
-    res.status(200).json({
-      message: 'Background image uploaded successfully',
-      video: {
-        id: video.id,
-        backgroundImage: video.backgroundImage,
-        status: video.status
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Background upload failed', error: error.message });
+    res.status(500).json({ message: error.message || 'Error uploading video' });
   }
 });
 
 // Get all videos for current user
-router.get('/', authenticate, async (req, res) => {
+router.get('/user', authenticate, async (req, res) => {
   try {
-    const videos = await Video.findAll({ 
-      where: { 
-        userId: req.user.id,
-        status: { 
-          [sequelize.Op.notIn]: ['deleted', 'expired'] 
-        }
-      },
-      order: [['createdAt', 'DESC']]
-    });
+    const videos = await Video.findByEmail(req.user.email);
     
     res.status(200).json({
       videos: videos.map(video => ({
         id: video.id,
-        md5Hash: video.md5Hash,
-        originalVideo: video.originalVideo,
-        size: video.size,
-        dimensions: video.dimensions,
-        frameCount: video.frameCount,
-        extractedForeground: video.extractedForeground,
-        backgroundImage: video.backgroundImage,
-        finalVideo: video.finalVideo,
-        status: video.status,
-        usageCount: video.usageCount,
+        oriVideoMd5: video.oriVideoMd5,
+        oriVideoPath: video.oriVideoPath,
+        oriVideoSize: video.oriVideoSize,
+        oriVideoDim: video.oriVideoDim,
+        oriVideoFrameCnt: video.oriVideoFrameCnt,
+        oriVideoDuration: video.oriVideoDuration, // 新增：视频时长
+        oriVideoFrameRate: video.oriVideoFrameRate, // 新增：帧率
+        oriVideoCodec: video.oriVideoCodec, // 新增：编码格式
+        foreVideoPath: video.foreVideoPath,
+        foreVideoMd5: video.foreVideoMd5,
+        oriVideoStatus: video.oriVideoStatus,
+        foreVideoStatus: video.foreVideoStatus,
+        oriVideoUsageCnt: video.oriVideoUsageCnt,
+        oriVideoName: video.oriVideoName,
         createdAt: video.createdAt,
         updatedAt: video.updatedAt
       }))
@@ -232,14 +262,24 @@ router.get('/', authenticate, async (req, res) => {
 });
 
 // Get video by ID
-router.get('/:id', authenticate, async (req, res) => {
+router.get('/user/:id', authenticate, async (req, res) => {
   try {
+    // 检查Op操作符是否正确引入
+    if (!Op) {
+      console.error('Sequelize Op operators are not properly imported');
+      return res.status(500).json({ 
+        message: 'Failed to get video', 
+        error: 'Database configuration error' 
+      });
+    }
+
+    // 使用导入的Op对象
     const video = await Video.findOne({ 
       where: { 
         id: req.params.id, 
-        userId: req.user.id,
-        status: { 
-          [sequelize.Op.notIn]: ['deleted', 'expired'] 
+        email: req.user.email,
+        oriVideoStatus: { 
+          [Op.ne]: 'deleted' 
         }
       }
     });
@@ -251,34 +291,45 @@ router.get('/:id', authenticate, async (req, res) => {
     res.status(200).json({
       video: {
         id: video.id,
-        md5Hash: video.md5Hash,
-        originalVideo: video.originalVideo,
-        size: video.size,
-        dimensions: video.dimensions,
-        frameCount: video.frameCount,
-        extractedForeground: video.extractedForeground,
-        backgroundImage: video.backgroundImage,
-        finalVideo: video.finalVideo,
-        status: video.status,
-        usageCount: video.usageCount,
+        orilVideoMd5: video.orilVideoMd5,
+        oriVideoPath: video.oriVideoPath,
+        oriVideoSize: video.oriVideoSize,
+        oriVideoDim: video.oriVideoDim,
+        oriVideoFrameCnt: video.oriVideoFrameCnt,
+        foreVideoPath: video.foreVideoPath,
+        foreVideoMd5: video.foreVideoMd5,
+        oriVideoStatus: video.oriVideoStatus,
+        foreVideoStatus: video.foreVideoStatus,
+        oriVideoUsageCnt: video.oriVideoUsageCnt,
+        oriVideoName: video.oriVideoName,
         createdAt: video.createdAt,
         updatedAt: video.updatedAt
       }
     });
   } catch (error) {
+    console.error('Get video error:', error);
     res.status(500).json({ message: 'Failed to get video', error: error.message });
   }
 });
 
 // Delete video
-router.delete('/:id', authenticate, async (req, res) => {
+router.delete('/del/:id', authenticate, async (req, res) => {
   try {
+    // 检查Op操作符是否正确引入
+    if (!Op) {
+      console.error('Sequelize Op operators are not properly imported');
+      return res.status(500).json({ 
+        message: 'Failed to delete video', 
+        error: 'Database configuration error' 
+      });
+    }
+
     const video = await Video.findOne({ 
       where: { 
         id: req.params.id, 
-        userId: req.user.id,
-        status: { 
-          [sequelize.Op.notIn]: ['deleted', 'expired'] 
+        email: req.user.email,
+        oriVideoStatus: { 
+          [Op.ne]: 'deleted' 
         }
       }
     });
@@ -288,15 +339,16 @@ router.delete('/:id', authenticate, async (req, res) => {
     }
     
     // 更新视频状态为已删除（软删除）
-    video.status = 'deleted';
+    video.oriVideoStatus = 'deleted';
+    if (video.foreVideoStatus === 'exists') {
+      video.foreVideoStatus = 'deleted';
+    }
     await video.save();
     
     // 如果需要物理删除文件
     // const filesToDelete = [
-    //   video.originalVideo, 
-    //   video.extractedForeground, 
-    //   video.backgroundImage, 
-    //   video.finalVideo
+    //   video.oriVideoPath, 
+    //   video.foreVideoPath
     // ].filter(Boolean);
     // 
     // filesToDelete.forEach(filePath => {
@@ -308,20 +360,21 @@ router.delete('/:id', authenticate, async (req, res) => {
     
     res.status(200).json({ message: 'Video deleted successfully' });
   } catch (error) {
+    console.error('Delete video error:', error);
     res.status(500).json({ message: 'Failed to delete video', error: error.message });
   }
 });
 
 // Video segmentation endpoint
-router.post('/:id/segment', authenticate, async (req, res) => {
+router.post('/segment/:id', authenticate, async (req, res) => {
   try {
     const videoId = req.params.id;
-    const { modelId } = req.body;
+    const { modelName } = req.body;
     
     const video = await Video.findOne({ 
       where: { 
         id: videoId, 
-        userId: req.user.id 
+        email: req.user.email 
       }
     });
     
@@ -329,21 +382,23 @@ router.post('/:id/segment', authenticate, async (req, res) => {
       return res.status(404).json({ message: '视频不存在' });
     }
     
-    if (!video.originalVideo) {
+    if (!video.oriVideoPath) {
       return res.status(400).json({ message: '原始视频不存在' });
     }
     
     // 模拟分割处理
     setTimeout(() => {
       // 在实际应用中，这里应该调用分割服务
-      video.status = 'processing';
+      video.oriVideoStatus = 'processing';
       video.save();
       
       // 模拟处理延迟
       setTimeout(async () => {
         // 使用原始视频作为前景视频(实际应用中应该是分割后的视频)
-        video.extractedForeground = video.originalVideo;
-        video.status = 'completed';
+        video.foreVideoPath = video.oriVideoPath;
+        video.foreVideoMd5 = video.oriVideoMd5;
+        video.foreVideoStatus = 'exists';
+        video.oriVideoStatus = 'exists';
         await video.save();
       }, 5000);
     }, 1000);
@@ -353,57 +408,11 @@ router.post('/:id/segment', authenticate, async (req, res) => {
       message: '视频分割开始处理',
       videoId: video.id,
       status: 'processing',
-      previewUrl: video.originalVideo
+      previewUrl: video.oriVideoPath
     });
   } catch (error) {
     console.error('视频分割失败:', error);
     res.status(500).json({ message: '视频分割失败', error: error.message });
-  }
-});
-
-// Apply background to video
-router.put('/:id/background', authenticate, async (req, res) => {
-  try {
-    const videoId = req.params.id;
-    const { backgroundId } = req.body;
-    
-    const video = await Video.findOne({ 
-      where: { 
-        id: videoId, 
-        userId: req.user.id 
-      }
-    });
-    
-    if (!video) {
-      return res.status(404).json({ message: '视频不存在' });
-    }
-    
-    if (!video.extractedForeground) {
-      return res.status(400).json({ message: '视频前景尚未提取' });
-    }
-    
-    // 在实际应用中，这里应该根据backgroundId获取背景图片
-    // 并将其应用到视频上。这里我们简单模拟这个过程。
-    
-    // 模拟背景应用过程
-    video.status = 'processing';
-    await video.save();
-    
-    setTimeout(async () => {
-      // 使用原始视频作为最终视频 (实际应用中应该是合成后的视频)
-      video.finalVideo = video.originalVideo;
-      video.status = 'completed';
-      await video.save();
-    }, 5000);
-    
-    res.json({
-      message: '背景应用处理开始',
-      videoId: video.id,
-      status: 'processing'
-    });
-  } catch (error) {
-    console.error('应用背景失败:', error);
-    res.status(500).json({ message: '应用背景失败', error: error.message });
   }
 });
 
@@ -413,26 +422,20 @@ router.get('/check/:md5Hash', authenticate, async (req, res) => {
     const md5Hash = req.params.md5Hash;
     
     // 在数据库中查找相同MD5的视频
-    const existingVideo = await Video.findOne({
-      where: {
-        md5Hash: md5Hash,
-        userId: req.user.id,
-        status: { 
-          [sequelize.Op.notIn]: ['deleted', 'expired'] 
-        }
-      },
-      attributes: ['id', 'originalVideo', 'size', 'dimensions', 'status']
-    });
+    const existingVideo = await Video.findByEmailAndMd5(
+      req.user.email,
+      md5Hash
+    );
     
     if (existingVideo) {
       return res.status(200).json({
         exists: true,
         video: {
           id: existingVideo.id,
-          originalVideo: existingVideo.originalVideo,
-          size: existingVideo.size,
-          dimensions: existingVideo.dimensions,
-          status: existingVideo.status
+          oriVideoPath: existingVideo.oriVideoPath,
+          oriVideoSize: existingVideo.oriVideoSize,
+          oriVideoDim: existingVideo.oriVideoDim,
+          oriVideoStatus: existingVideo.oriVideoStatus
         }
       });
     }

@@ -39,7 +39,7 @@ const Register = () => {
     try {
       setLoading(true);
       await register(values.username, values.email, values.password);
-      navigate('/dashboard');
+      navigate('/');
     } catch (error) {
       setStatus({ error: error.response?.data?.message || '注册失败' });
     } finally {

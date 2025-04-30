@@ -4,6 +4,11 @@ const sequelize = require('./db');
 
 // 定义User模型
 const User = sequelize.define('User', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
   username: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -26,6 +31,12 @@ const User = sequelize.define('User', {
     validate: {
       len: [6, 100]
     }
+  },
+  userStatus: {
+    type: DataTypes.ENUM('active', 'banned'),
+    defaultValue: 'active',
+    allowNull: false,
+    comment: '用户状态：活跃、封禁'
   },
   role: {
     type: DataTypes.ENUM('user', 'agent', 'admin'),
@@ -50,6 +61,12 @@ const User = sequelize.define('User', {
     allowNull: false,
     defaultValue: 0.00,
     comment: '总消费金额'
+  },
+  transferAmount: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+    defaultValue: 0.00,
+    comment: '总转移金额'
   },
   createdAt: {
     type: DataTypes.DATE,

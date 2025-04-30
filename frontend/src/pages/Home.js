@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Box,
@@ -19,8 +19,11 @@ import {
   Movie,
   PhotoLibrary,
 } from '@mui/icons-material';
+import { AuthContext } from '../contexts/AuthContext';
 
 const Home = () => {
+  const { currentUser } = useContext(AuthContext);
+
   return (
     <Box>
       {/* Hero Section */}
@@ -43,24 +46,38 @@ const Home = () => {
                 只需几步，即可提取视频前景并应用自定义背景。
               </Typography>
               <Box sx={{ display: 'flex', gap: 2 }}>
-                <Button
-                  component={Link}
-                  to="/register"
-                  variant="contained"
-                  color="secondary"
-                  size="large"
-                >
-                  开始使用
-                </Button>
-                <Button
-                  component={Link}
-                  to="/login"
-                  variant="outlined"
-                  color="inherit"
-                  size="large"
-                >
-                  登录
-                </Button>
+                {currentUser ? (
+                  <Button
+                    component={Link}
+                    to="/dashboard"
+                    variant="contained"
+                    color="secondary"
+                    size="large"
+                  >
+                    进入仪表盘
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      component={Link}
+                      to="/register"
+                      variant="contained"
+                      color="secondary"
+                      size="large"
+                    >
+                      开始使用
+                    </Button>
+                    <Button
+                      component={Link}
+                      to="/login"
+                      variant="outlined"
+                      color="inherit"
+                      size="large"
+                    >
+                      登录
+                    </Button>
+                  </>
+                )}
               </Box>
             </Grid>
             <Grid item xs={12} md={6}>
@@ -259,15 +276,27 @@ const Home = () => {
           </Grid>
 
           <Box sx={{ textAlign: 'center', mt: 6 }}>
-            <Button
-              component={Link}
-              to="/register"
-              variant="contained"
-              color="primary"
-              size="large"
-            >
-              立即试用
-            </Button>
+            {currentUser ? (
+              <Button
+                component={Link}
+                to="/dashboard"
+                variant="contained"
+                color="primary"
+                size="large"
+              >
+                进入仪表盘
+              </Button>
+            ) : (
+              <Button
+                component={Link}
+                to="/register"
+                variant="contained"
+                color="primary"
+                size="large"
+              >
+                立即试用
+              </Button>
+            )}
           </Box>
         </Container>
       </Box>

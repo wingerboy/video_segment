@@ -16,7 +16,17 @@ const authenticate = async (req, res, next) => {
     }
     
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findByPk(decoded.id);
+    let user;
+    
+    // 如果token中包含email，则通过email查找
+    if (decoded.email) {
+      user = await User.findByEmail(decoded.email);
+    } else if (decoded.id) {
+      // 向后兼容：如果token中包含id，则通过id查找
+      user = await User.findByPk(decoded.id);
+    } else {
+      throw new Error('无效的Token');
+    }
     
     if (!user) {
       return res.status(401).json({ 

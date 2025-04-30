@@ -62,8 +62,7 @@ const Navbar = () => {
               </Button>
               <Button
                 color="inherit"
-                component={Link}
-                to="/upload"
+                onClick={() => navigate('/segment')}
                 sx={{ mx: 1 }}
               >
                 视频分割

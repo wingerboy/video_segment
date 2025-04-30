@@ -1,7 +1,6 @@
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
-import { API_BASE_URL, API_URL, API_URL_JAVA } from '../config';
-
+import { API_BASE_URL, API_URL } from '../config';
 
 // 创建axios实例
 const api = axios.create({
@@ -10,27 +9,8 @@ const api = axios.create({
     'Content-Type': 'application/json'
   }
 });
-// 创建axios实例
-// 修改apiJava实例配置
-const apiJava = axios.create({
-  baseURL: API_URL_JAVA,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-});
 
 // 请求拦截器添加token
-// 在apiJava实例中添加请求拦截器
-apiJava.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -42,17 +22,45 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// 获取完整URL
+/**
+ * 获取完整的资源URL
+ * @param {string} path 资源路径
+ * @returns {string} 完整的URL地址
+ */
 export const getFullUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
-  return `${API_BASE_URL}/${path}`;
+  
+  // 简化路径处理 - 只关注虚拟路径部分
+  let cleanPath = path;
+  
+  // 确保路径以/开头
+  if (!cleanPath.startsWith('/')) {
+    cleanPath = '/' + cleanPath;
+  }
+  
+  // 处理绝对路径 - 如果包含多级目录路径，只保留关键部分
+  const pathParts = cleanPath.split('/');
+  // 尝试找到虚拟路径的关键部分（videos/文件名）
+  const videosIndex = pathParts.findIndex(part => part === 'videos');
+  
+  if (videosIndex !== -1 && pathParts.length > videosIndex + 1) {
+    // 如果找到 "videos" 部分，只保留 "/videos/filename.mp4" 这样的关键部分
+    cleanPath = '/' + pathParts.slice(videosIndex).join('/');
+  }
+  
+  console.log('原始路径:', path);
+  console.log('处理后路径:', cleanPath);
+  console.log('完整URL:', `${API_BASE_URL}${cleanPath}`);
+  
+  // 返回完整URL
+  return `${API_BASE_URL}${cleanPath}`;
 };
 
 // 获取所有视频
 export const getAllVideos = async () => {
   try {
-    const response = await api.get('/videos');
+    const response = await api.get('/videos/user');
     // 确保返回数组
     return Array.isArray(response.data) ? response.data : (response.data?.videos || []);
   } catch (error) {
@@ -64,7 +72,7 @@ export const getAllVideos = async () => {
 // 获取单个视频详情
 export const getVideoById = async (id) => {
   try {
-    const response = await api.get(`/videos/${id}`);
+    const response = await api.get(`/videos/user/${id}`);
     return response.data;
   } catch (error) {
     console.error('获取视频详情失败:', error);
@@ -104,21 +112,6 @@ export const checkVideoExists = async (md5Hash) => {
   }
 };
 
-// 检查背景图是否已存在
-export const checkBackgroundExists = async (md5Hash) => {
-  try {
-    const response = await api.get(`/backgrounds/check/${md5Hash}`);
-    return response.data;
-  } catch (error) {
-    // 如果返回404，则表示背景图不存在
-    if (error.response && error.response.status === 404) {
-      return { exists: false };
-    }
-    console.error('检查背景图失败:', error);
-    throw error;
-  }
-};
-
 // 上传视频文件
 export const uploadVideo = async (file, name, onProgress) => {
   try {
@@ -140,6 +133,11 @@ export const uploadVideo = async (file, name, onProgress) => {
       }
     });
 
+    // 如果前端需要构建完整的视频URL
+    if (response.data.video && response.data.video.oriVideoPath) {
+      console.log('视频上传成功，路径:', response.data.video.oriVideoPath);
+    }
+
     return response.data;
   } catch (error) {
     console.error('上传视频失败:', error);
@@ -147,136 +145,10 @@ export const uploadVideo = async (file, name, onProgress) => {
   }
 };
 
-// 上传背景图片
-export const uploadBackgroundImage = async (videoId, file) => {
-  try {
-    const formData = new FormData();
-    formData.append('image', file);
-
-    const response = await api.post(`/videos/${videoId}/background`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-
-    return response.data;
-  } catch (error) {
-    console.error('上传背景图片失败:', error);
-    throw error;
-  }
-};
-
-// 开始视频分割处理
-export const startVideoSegmentation = async (videoId, modelId) => {
-  try {
-    const response = await api.post(`/videos/${videoId}/segment`, { modelId });
-    return response.data;
-  } catch (error) {
-    console.error('视频分割处理失败:', error);
-    throw error;
-  }
-};
-
-// 创建视频处理任务
-export const createTask = async (videoId, options) => {
-  try {
-    const response = await api.post('/tasks', {
-      videoId,
-      ...options
-    });
-    return response.data;
-  } catch (error) {
-    console.error('创建任务失败:', error);
-    throw error;
-  }
-};
-// 创建视频处理任务
-// 确保createTaskNew使用正确的端点路径
-export const createTaskV2 = async (params) => {
-  try {
-    const formData = new FormData();
-    // 将params对象中的每个属性添加到formData
-    Object.keys(params).forEach(key => {
-      if (params[key] !== undefined && params[key] !== null) {
-        // 特殊处理videoId和backgroundId，确保是数字
-        if (key === 'videoId' || key === 'backgroundId') {
-          formData.append(key, Number(params[key]));
-        } else {
-          formData.append(key, params[key]);
-        }
-      }
-    });
-
-    const response = await apiJava.post('/task/create', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-    if(response?.data?.code!== 0){
-      throw new Error(response?.data?.msg || '创建任务失败');
-    }
-
-    return response.data;
-  } catch (error) {
-    console.error('创建任务失败:', error);
-    throw error;
-  }
-};
-
-// 获取任务详情
-export const getTaskById = async (taskId) => {
-  try {
-    const response = await api.get(`/tasks/${taskId}`);
-    return response.data;
-  } catch (error) {
-    console.error('获取任务详情失败:', error);
-    throw error;
-  }
-};
-
-// 获取任务状态
-export const getTaskStatus = async (taskId) => {
-  try {
-    const response = await api.get(`/tasks/${taskId}/status`);
-    return response.data;
-  } catch (error) {
-    console.error('获取任务状态失败:', error);
-    throw error;
-  }
-};
-
-// 获取所有任务
-export const getAllTasks = async () => {
-  try {
-    const response = await api.get('/tasks');
-    // 确保返回数组
-    return Array.isArray(response.data) ? response.data : (response.data?.tasks || []);
-  } catch (error) {
-    console.error('获取任务列表失败:', error);
-    throw error;
-  }
-};
-// 获取所有任务
-export const getAllTasksV2 = async (params) => {
-  try {
-    const {data} = await apiJava.post('/task/list', params);
-
-    if(data?.code !== 0){
-      throw new Error(data?.msg || '获取任务列表失败');
-    }
-
-    // 确保返回数组
-    return data?.data || [];
-  } catch (error) {
-    console.error('获取任务列表失败:', error);
-    throw error;
-  }
-};
-
 // 删除视频
 export const deleteVideo = async (id) => {
   try {
-    const response = await api.delete(`/videos/${id}`);
+    const response = await api.delete(`/videos/del/${id}`);
     return response.data;
   } catch (error) {
     console.error('删除视频失败:', error);
@@ -287,55 +159,9 @@ export const deleteVideo = async (id) => {
 // 修改视频背景
 export const changeVideoBackground = async (videoId, backgroundId) => {
   try {
-    const response = await api.put(`/videos/${videoId}/background`, { backgroundId });
-    return response.data;
+    return { success: false, message: 'This function is deprecated' };
   } catch (error) {
     console.error('修改视频背景失败:', error);
-    throw error;
-  }
-};
-
-// 获取所有背景图片
-export const getAllBackgrounds = async () => {
-  try {
-    const response = await api.get('/backgrounds');
-    // 确保返回数组
-    return Array.isArray(response.data) ? response.data : (response.data?.backgrounds || []);
-  } catch (error) {
-    console.error('获取背景库失败:', error);
-    throw error;
-  }
-};
-
-// 上传背景到背景库
-export const uploadBackgroundToLibrary = async (file, name = '') => {
-  try {
-    const formData = new FormData();
-    formData.append('background', file);
-    if (name) {
-      formData.append('name', name);
-    }
-
-    const response = await api.post('/backgrounds', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-
-    return response.data;
-  } catch (error) {
-    console.error('上传背景到背景库失败:', error);
-    throw error;
-  }
-};
-
-// 删除背景
-export const deleteBackground = async (id) => {
-  try {
-    const response = await api.delete(`/backgrounds/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error('删除背景失败:', error);
     throw error;
   }
 };
@@ -345,17 +171,7 @@ export default {
   getAllVideos,
   getVideoById,
   checkVideoExists,
-  checkBackgroundExists,
   uploadVideo,
-  uploadBackgroundImage,
   deleteVideo,
-  startVideoSegmentation,
-  createTask,
-  getTaskById,
-  getTaskStatus,
-  getAllTasks,
-  changeVideoBackground,
-  getAllBackgrounds,
-  uploadBackgroundToLibrary,
-  deleteBackground
+  changeVideoBackground
 };

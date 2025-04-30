@@ -32,7 +32,7 @@ const Login = () => {
     try {
       setLoading(true);
       await login(values.email, values.password);
-      navigate('/dashboard');
+      navigate('/');
     } catch (error) {
       setStatus({ error: error.response?.data?.message || '登录失败' });
     } finally {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -6,41 +6,29 @@ import {
   Typography,
   Paper,
   Grid,
-  Card,
-  CardMedia,
-  Button,
-  Chip,
   Divider,
+  Button,
   CircularProgress,
-  Alert,
-  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Card,
+  CardMedia
 } from '@mui/material';
 import {
-  ArrowBack,
-  CloudDownload,
-  Delete,
-  Refresh,
-  PhotoLibrary,
-  Movie,
   CheckCircleOutline,
+  Delete,
+  ArrowBack
 } from '@mui/icons-material';
-import { getVideoById, uploadBackgroundImage, deleteVideo } from '../../services/videoService';
-
+import { getVideoById, deleteVideo } from '../../services/videoService';
 import { API_BASE_URL } from '../../config';
+import moment from 'moment';
+import 'moment/locale/zh-cn';  // 导入中文语言包
 
-const statusColors = {
-  pending: 'warning',
-  processing: 'info',
-  completed: 'success',
-  failed: 'error'
-};
-
-const statusTranslations = {
-  pending: '待处理',
-  processing: '处理中',
-  completed: '已完成',
-  failed: '失败'
-};
+// 设置moment为中文
+moment.locale('zh-cn');
 
 const VideoDetail = () => {
   const { id } = useParams();
@@ -48,124 +36,114 @@ const VideoDetail = () => {
   const [video, setVideo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [uploadingBackground, setUploadingBackground] = useState(false);
-  const backgroundInputRef = useRef(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   
-  // Polling interval for status updates (every 5 seconds)
+  // 定时获取视频信息的间隔（毫秒）
   const POLLING_INTERVAL = 5000;
-  let pollingTimer = null;
+  let pollingInterval = useRef(null);
   
-  // Fetch video details when component mounts
-  useEffect(() => {
-    fetchVideo();
+  // 获取视频信息
+  const fetchVideo = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setLoading(true);
+    }
     
-    // Start polling if video is in pending or processing state
-    startPolling();
-    
-    // Cleanup on unmount
-    return () => {
-      clearInterval(pollingTimer);
-    };
-  }, [id]);
-  
-  // Start polling for status updates
-  const startPolling = () => {
-    pollingTimer = setInterval(() => {
-      if (video && (video.status === 'pending' || video.status === 'processing')) {
-        fetchVideo(false);
-      } else {
-        clearInterval(pollingTimer);
-      }
-    }, POLLING_INTERVAL);
-  };
-  
-  // Fetch video details from API
-  const fetchVideo = async (showLoading = true) => {
     try {
-      if (showLoading) {
-        setLoading(true);
-      }
-      setError('');
-      const data = await getVideoById(id);
-      setVideo(data);
+      const response = await getVideoById(id);
+      const videoData = response.video;
       
-      // Stop polling if video processing is complete or failed
-      if (data.status === 'completed' || data.status === 'failed') {
-        clearInterval(pollingTimer);
+      setVideo(videoData);
+      
+      // 如果视频正在处理中，启动轮询
+      if (videoData.oriVideoStatus === 'processing') {
+        startPolling();
+      } else if (pollingInterval.current) {
+        // 如果视频不再处理中，停止轮询
+        clearInterval(pollingInterval.current);
+        pollingInterval.current = null;
       }
     } catch (error) {
-      setError('加载视频详情失败。请重试。');
-      console.error('Error fetching video details:', error);
+      setError('获取视频详情失败：' + (error.response?.data?.message || error.message || '未知错误'));
+      console.error('获取视频详情失败:', error);
     } finally {
       if (showLoading) {
         setLoading(false);
       }
     }
-  };
+  }, [id]);
   
-  // Handle background image upload
-  const handleBackgroundUpload = async (event) => {
-    const file = event.target.files[0];
-    
-    if (!file) return;
-    
-    try {
-      setUploadingBackground(true);
-      setError('');
-      
-      await uploadBackgroundImage(id, file);
-      
-      // Refresh video data
-      await fetchVideo(false);
-      
-      // Start polling for status updates
-      startPolling();
-    } catch (error) {
-      setError('上传背景图片失败。请重试。');
-      console.error('Error uploading background:', error);
-    } finally {
-      setUploadingBackground(false);
+  // 启动轮询
+  const startPolling = useCallback(() => {
+    if (pollingInterval.current) {
+      clearInterval(pollingInterval.current);
     }
-  };
+    
+    pollingInterval.current = setInterval(() => {
+      fetchVideo(false);
+    }, POLLING_INTERVAL);
+  }, [fetchVideo]);
   
-  // Handle video deletion
-  const handleDelete = async () => {
-    if (window.confirm('您确定要删除此视频吗？此操作无法撤销。')) {
-      try {
-        await deleteVideo(id);
-        navigate('/dashboard');
-      } catch (error) {
-        setError('删除视频失败。请重试。');
-        console.error('Error deleting video:', error);
+  useEffect(() => {
+    fetchVideo();
+    
+    // 清理函数
+    return () => {
+      if (pollingInterval.current) {
+        clearInterval(pollingInterval.current);
       }
+    };
+  }, [fetchVideo]);
+  
+  // 删除视频
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteVideo(id);
+      setDeleteDialogOpen(false);
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('删除视频失败:', error);
+      setError('删除视频失败: ' + (error.response?.data?.message || error.message || '未知错误'));
+    } finally {
+      setDeleting(false);
     }
   };
   
-  // Format date
+  // 格式化日期
   const formatDate = (dateString) => {
-    const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-    return new Date(dateString).toLocaleDateString('zh-CN', options);
+    return moment(dateString).format('YYYY-MM-DD HH:mm');
   };
   
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-        <CircularProgress />
-      </Box>
+      <Container>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 5 }}>
+          <CircularProgress />
+        </Box>
+      </Container>
+    );
+  }
+  
+  if (error) {
+    return (
+      <Container>
+        <Box sx={{ mt: 5 }}>
+          <Typography color="error" gutterBottom>{error}</Typography>
+          <Button variant="outlined" onClick={() => navigate('/dashboard')}>
+            返回仪表盘
+          </Button>
+        </Box>
+      </Container>
     );
   }
   
   if (!video) {
     return (
-      <Container maxWidth="md">
-        <Box sx={{ mt: 4 }}>
-          <Alert severity="error">未找到视频或视频已被删除。</Alert>
-          <Button 
-            variant="contained" 
-            onClick={() => navigate('/dashboard')} 
-            startIcon={<ArrowBack />}
-            sx={{ mt: 2 }}
-          >
+      <Container>
+        <Box sx={{ mt: 5 }}>
+          <Typography gutterBottom>视频不存在或已被删除</Typography>
+          <Button variant="outlined" onClick={() => navigate('/dashboard')}>
             返回仪表盘
           </Button>
         </Box>
@@ -174,115 +152,74 @@ const VideoDetail = () => {
   }
   
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ mt: 4, mb: 6 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-          <Button 
-            variant="outlined" 
-            onClick={() => navigate('/dashboard')} 
-            startIcon={<ArrowBack />}
-            sx={{ mr: 2 }}
-          >
-            返回
-          </Button>
-          <Typography variant="h4" component="h1">
-            视频详情
-          </Typography>
-          <Chip 
-            label={statusTranslations[video.status] || video.status}
-            color={statusColors[video.status] || 'default'}
-            sx={{ ml: 2 }}
-          />
-        </Box>
+    <Container>
+      <Box sx={{ my: 4 }}>
+        <Button
+          variant="text"
+          startIcon={<ArrowBack />}
+          onClick={() => navigate('/dashboard')}
+          sx={{ mb: 2 }}
+        >
+          返回仪表盘
+        </Button>
         
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
-        )}
-        
-        <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
-          {/* Processing status */}
-          {(video.status === 'pending' || video.status === 'processing') && (
-            <Box sx={{ mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1, textAlign: 'center' }}>
-              <CircularProgress size={30} sx={{ mb: 1 }} />
-              <Typography variant="body1">
-                {video.status === 'pending' ? '等待处理中...' : '正在处理您的视频...'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                这可能需要几分钟。页面将自动更新。
-              </Typography>
-            </Box>
-          )}
-          
-          {/* Error status */}
-          {video.status === 'failed' && (
-            <Alert severity="error" sx={{ mb: 3 }}>
-              处理失败。请重新上传您的视频。
-            </Alert>
-          )}
+        <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+            <Typography variant="h5" gutterBottom>
+              {video.oriVideoName || `视频 #${id}`}
+            </Typography>
+            
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<Delete />}
+              onClick={() => setDeleteDialogOpen(true)}
+            >
+              删除视频
+            </Button>
+          </Box>
           
           <Grid container spacing={4}>
-            {/* Video display */}
-            <Grid item xs={12} md={7}>
-              <Typography variant="h6" gutterBottom>
-                {video.finalVideo ? '应用自定义背景的最终视频' : '原始视频'}
-              </Typography>
-              
-              <Card sx={{ mb: 2 }}>
+            <Grid item xs={12} md={8}>
+              {/* Video Player */}
+              <Card elevation={0} sx={{ mb: 3 }}>
                 <CardMedia
                   component="video"
                   controls
-                  sx={{ width: '100%', maxHeight: '400px' }}
-                  // 修改所有媒体资源路径
-                  src={`${API_BASE_URL}/${video.finalVideo || video.originalVideo}`}
-                  
-                  // 下载链接
-                  href={`${API_BASE_URL}/${video.finalVideo || video.originalVideo}`}
-                  
-                  // 背景图片
-                  image={`${API_BASE_URL}/${video.backgroundImage}`}
+                  sx={{ width: '100%', maxHeight: '500px' }}
+                  image={`${API_BASE_URL}/${video.oriVideoPath}`}
                 />
               </Card>
-              
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  startIcon={<CloudDownload />}
-                  href={`${API_BASE_URL}/${video.finalVideo || video.originalVideo}`}
-                  download
-                  disabled={!video.finalVideo && !video.originalVideo}
-                >
-                  下载视频
-                </Button>
-                
-                <Button
-                  variant="outlined"
-                  color="error"
-                  startIcon={<Delete />}
-                  onClick={handleDelete}
-                >
-                  删除
-                </Button>
-              </Box>
             </Grid>
             
-            {/* Video info and background upload */}
-            <Grid item xs={12} md={5}>
-              <Typography variant="h6" gutterBottom>
-                视频信息
-              </Typography>
-              
+            <Grid item xs={12} md={4}>
+              {/* Video info */}
               <Box sx={{ mb: 3 }}>
-                <Typography variant="body2" color="text.secondary">
-                  上传于 {formatDate(video.createdAt)}
+                <Typography variant="subtitle1" gutterBottom>
+                  视频信息
                 </Typography>
-                {video.updatedAt && video.updatedAt !== video.createdAt && (
-                  <Typography variant="body2" color="text.secondary">
-                    最后更新: {formatDate(video.updatedAt)}
+                
+                <Typography variant="body2" gutterBottom>
+                  <strong>上传时间:</strong> {formatDate(video.createdAt)}
+                </Typography>
+                
+                <Typography variant="body2" gutterBottom>
+                  <strong>视频大小:</strong> {video.oriVideoSize} MB
+                </Typography>
+                
+                {video.oriVideoDim && (
+                  <Typography variant="body2" gutterBottom>
+                    <strong>视频尺寸:</strong> {video.oriVideoDim}
                   </Typography>
                 )}
+                
+                <Typography variant="body2" gutterBottom>
+                  <strong>使用次数:</strong> {video.oriVideoUsageCnt || 0}
+                </Typography>
+                
+                <Typography variant="body2" gutterBottom>
+                  <strong>状态:</strong> {video.oriVideoStatus === 'exists' ? '可用' : video.oriVideoStatus}
+                </Typography>
               </Box>
               
               <Divider sx={{ mb: 3 }} />
@@ -290,103 +227,58 @@ const VideoDetail = () => {
               {/* Processing Status */}
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle1" gutterBottom>
-                  处理步骤:
+                  处理状态
                 </Typography>
                 
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <CheckCircleOutline color="success" sx={{ mr: 1 }} />
-                  <Typography variant="body2">原始视频已上传</Typography>
-                </Box>
-                
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  {video.extractedForeground ? (
+                  {video.foreVideoPath ? (
                     <CheckCircleOutline color="success" sx={{ mr: 1 }} />
-                  ) : video.status === 'processing' ? (
+                  ) : video.oriVideoStatus === 'processing' ? (
                     <CircularProgress size={20} sx={{ mr: 1 }} />
                   ) : (
                     <CheckCircleOutline color="disabled" sx={{ mr: 1 }} />
                   )}
                   <Typography variant="body2">
-                    前景提取 {video.extractedForeground ? '已完成' : video.status === 'processing' ? '进行中' : '待处理'}
+                    前景提取 {video.foreVideoPath ? '已完成' : video.oriVideoStatus === 'processing' ? '进行中' : '待处理'}
                   </Typography>
                 </Box>
                 
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  {video.finalVideo ? (
-                    <CheckCircleOutline color="success" sx={{ mr: 1 }} />
-                  ) : video.backgroundImage && video.status === 'processing' ? (
-                    <CircularProgress size={20} sx={{ mr: 1 }} />
-                  ) : (
-                    <CheckCircleOutline color="disabled" sx={{ mr: 1 }} />
-                  )}
-                  <Typography variant="body2">
-                    背景替换 {video.finalVideo ? '已完成' : (video.backgroundImage && video.status === 'processing') ? '进行中' : '待处理'}
-                  </Typography>
-                </Box>
-              </Box>
-              
-              <Divider sx={{ mb: 3 }} />
-              
-              {/* Background Image Upload */}
-              <Box>
-                <Typography variant="subtitle1" gutterBottom>
-                  自定义背景
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                  您可以创建任务对视频进行进一步处理。
                 </Typography>
-                
-                {video.backgroundImage ? (
-                  <Box>
-                    <Card sx={{ mb: 2 }}>
-                      <CardMedia
-                        component="img"
-                        sx={{ height: '200px', objectFit: 'contain' }}
-                        image={`${API_BASE_URL}/${video.backgroundImage}`}
-                        alt="背景图片"
-                      />
-                    </Card>
-                    <Button
-                      variant="outlined"
-                      startIcon={<PhotoLibrary />}
-                      onClick={() => backgroundInputRef.current.click()}
-                      disabled={uploadingBackground || video.status === 'processing'}
-                      fullWidth
-                    >
-                      更换背景
-                    </Button>
-                  </Box>
-                ) : (
-                  <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      尚未上传背景图片。上传图片来替换视频背景。
-                    </Typography>
-                    <Button
-                      variant="outlined"
-                      startIcon={<PhotoLibrary />}
-                      onClick={() => backgroundInputRef.current.click()}
-                      disabled={uploadingBackground || video.status === 'processing' || !video.extractedForeground}
-                      fullWidth
-                    >
-                      {uploadingBackground ? <CircularProgress size={24} /> : '上传背景图片'}
-                    </Button>
-                    {!video.extractedForeground && (
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                        请等待前景提取完成后再上传背景。
-                      </Typography>
-                    )}
-                  </Box>
-                )}
-                
-                <input
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  ref={backgroundInputRef}
-                  onChange={handleBackgroundUpload}
-                />
               </Box>
+              
+              {/* 任务按钮 */}
+              <Button 
+                variant="contained" 
+                color="primary" 
+                fullWidth
+                onClick={() => navigate(`/videos/${id}/process`)}
+              >
+                创建处理任务
+              </Button>
             </Grid>
           </Grid>
         </Paper>
       </Box>
+      
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => !deleting && setDeleteDialogOpen(false)}>
+        <DialogTitle>确认删除</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            您确定要删除这个视频吗？此操作无法撤销。
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
+            取消
+          </Button>
+          <Button onClick={handleDelete} color="error" disabled={deleting}>
+            {deleting ? <CircularProgress size={24} /> : '删除'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

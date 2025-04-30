@@ -3,71 +3,87 @@ const sequelize = require('./db');
 
 // 定义Video模型
 const Video = sequelize.define('Video', {
-  userId: {
+  id: {
     type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  email: {
+    type: DataTypes.STRING,
     allowNull: false,
-    references: {
-      model: 'users',
-      key: 'id'
+    validate: {
+      isEmail: true
     }
   },
-  name: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    comment: '视频名称'
-  },
-  md5Hash: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    comment: '视频MD5哈希值'
-  },
-  originalVideo: {
+  oriVideoPath: {
     type: DataTypes.STRING,
     allowNull: false,
     comment: '原始视频路径'
   },
-  size: {
-    type: DataTypes.INTEGER,
+  oriVideoMd5: {
+    type: DataTypes.STRING,
     allowNull: false,
-    comment: '视频大小（字节）'
+    comment: '原始视频md5'
   },
-  dimensions: {
+  foreVideoPath: {
     type: DataTypes.STRING,
     allowNull: true,
-    comment: '视频尺寸，例如 "1920x1080"'
-  },
-  frameCount: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    comment: '视频总帧数'
-  },
-  extractedForeground: {
-    type: DataTypes.STRING,
-    allowNull: true,
-    defaultValue: null,
     comment: '提取的前景视频路径'
   },
-  backgroundImage: {
+  foreVideoMd5: {
     type: DataTypes.STRING,
     allowNull: true,
-    defaultValue: null,
-    comment: '背景图路径'
+    comment: '提取的前景视频md5'
   },
-  finalVideo: {
+  oriVideoStatus: {
+    type: DataTypes.ENUM('exists', 'deleted', 'expired'),
+    defaultValue: 'exists',
+    comment: '原始视频状态：存在、删除、过期等'
+  },
+  foreVideoStatus: {
+    type: DataTypes.ENUM('exists', 'deleted', 'expired'),
+    defaultValue: 'exists',
+    comment: '前景视频状态：存在、删除、过期等'
+  },
+  oriVideoSize: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    comment: '原始视频大小（Mb）'
+  },
+  oriVideoDim: {
     type: DataTypes.STRING,
     allowNull: true,
-    defaultValue: null,
-    comment: '合成的最终视频路径'
+    comment: '原始视频尺寸，例如 "1920x1080"'
   },
-  status: {
-    type: DataTypes.ENUM('active', 'deleted', 'expired', 'pending', 'processing', 'completed', 'failed'),
-    defaultValue: 'active',
-    comment: '视频状态：存在、删除、过期等'
+  oriVideoFrameCnt: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: '原始视频总帧数'
   },
-  usageCount: {
+  oriVideoDuration: {
+    type: DataTypes.FLOAT,
+    allowNull: true,
+    comment: '原始视频时长(秒)'
+  },
+  oriVideoFrameRate: {
+    type: DataTypes.FLOAT,
+    allowNull: true,
+    comment: '原始视频帧率(fps)'
+  },
+  oriVideoCodec: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: '原始视频编码格式'
+  },
+  oriVideoUsageCnt: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
-    comment: '视频使用次数'
+    comment: '原始视频使用次数'
+  },
+  oriVideoName: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    comment: '原始视频名称'
   },
   createdAt: {
     type: DataTypes.DATE,
@@ -84,7 +100,32 @@ const Video = sequelize.define('Video', {
     beforeUpdate: (video) => {
       video.updatedAt = new Date();
     }
-  }
+  },
+  indexes: [
+    // 定义复合唯一索引：email + md5 + status 组合保持唯一
+    {
+      unique: true,
+      fields: ['email', 'oriVideoMd5', 'oriVideoStatus']
+    }
+  ]
 });
+
+// 通过Email查询视频
+Video.findByEmail = async function(email) {
+  return this.findAll({ 
+    where: { email },
+    order: [['createdAt', 'DESC']]
+  });
+};
+
+// 通过Email和MD5查询视频
+Video.findByEmailAndMd5 = async function(email, md5) {
+  return this.findOne({ 
+    where: { 
+      email: email,
+      oriVideoMd5: md5
+    }
+  });
+};
 
 module.exports = Video; 

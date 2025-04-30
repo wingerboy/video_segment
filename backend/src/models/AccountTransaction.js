@@ -9,19 +9,31 @@ const AccountTransaction = sequelize.define('AccountTransaction', {
     primaryKey: true,
     autoIncrement: true
   },
-  // 关联的用户ID
-  userId: {
-    type: DataTypes.INTEGER,
+  // 用户邮箱
+  email: {
+    type: DataTypes.STRING,
     allowNull: false,
-    references: {
-      model: 'users',
-      key: 'id'
+    validate: {
+      isEmail: true
     }
   },
-  // 交易类型: recharge(充值), consume(消费), refund(退款)
-  type: {
-    type: DataTypes.ENUM('recharge', 'consume', 'refund'),
-    allowNull: false
+  // 接口地址
+  interfaceAddress: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: '接口地址'
+  },
+  // 交易类型: recharge(充值), consume(消费), refund(退款), transfer(转账)
+  transactionType: {
+    type: DataTypes.ENUM('recharge', 'consume', 'refund', 'transfer'),
+    allowNull: false,
+    comment: '交易类型'
+  },
+  // 交易对象
+  target: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: '交易对象，consume时候是taskid， transfer是userid'
   },
   // 交易金额
   amount: {
@@ -31,81 +43,36 @@ const AccountTransaction = sequelize.define('AccountTransaction', {
       min: 0.01
     }
   },
-  // 交易前余额
-  balanceBefore: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false,
-    defaultValue: 0.00
-  },
-  // 交易后余额
-  balanceAfter: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false,
-    defaultValue: 0.00
-  },
   // 交易描述
   description: {
     type: DataTypes.STRING,
-    allowNull: true
-  },
-  // 交易状态: pending(处理中), completed(已完成), failed(失败)
-  status: {
-    type: DataTypes.ENUM('pending', 'completed', 'failed'),
-    defaultValue: 'pending',
-    allowNull: false
-  },
-  // 关联的任务ID (如果是任务消费)
-  taskId: {
-    type: DataTypes.INTEGER,
     allowNull: true,
-    references: {
-      model: 'tasks',
-      key: 'id'
-    }
-  },
-  // 外部交易号 (如支付宝或微信支付订单号)
-  externalTransactionId: {
-    type: DataTypes.STRING,
-    allowNull: true
+    comment: '交易描述'
   },
   // 交易时间
   transactionTime: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
-  },
-  // 创建时间
-  createdAt: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
-  },
-  // 更新时间
-  updatedAt: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
   }
 }, {
   tableName: 'account_transactions',
   timestamps: true,
-  // 在更新前更新updatedAt
-  hooks: {
-    beforeUpdate: (transaction) => {
-      transaction.updatedAt = new Date();
-    }
-  }
+  createdAt: 'transactionTime',
+  updatedAt: false,
 });
 
 // 查找用户所有交易记录
-AccountTransaction.findByUserId = async function(userId) {
+AccountTransaction.findByEmail = async function(email) {
   return this.findAll({ 
-    where: { userId },
+    where: { email },
     order: [['transactionTime', 'DESC']]
   });
 };
 
 // 查找用户特定类型的交易记录
-AccountTransaction.findByUserIdAndType = async function(userId, type) {
+AccountTransaction.findByEmailAndType = async function(email, type) {
   return this.findAll({ 
-    where: { userId, type },
+    where: { email, transactionType: type },
     order: [['transactionTime', 'DESC']] 
   });
 };
