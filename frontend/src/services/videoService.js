@@ -1,6 +1,6 @@
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
-import { API_BASE_URL, API_URL } from '../config';
+import { API_BASE_URL, API_URL, AUTH_CONFIG } from '../config';
 
 // 创建axios实例
 const api = axios.create({
@@ -13,7 +13,7 @@ const api = axios.create({
 // 请求拦截器添加token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem(AUTH_CONFIG.TOKEN_KEY);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

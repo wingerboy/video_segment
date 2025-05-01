@@ -1,124 +1,118 @@
-import React, { createContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
-import { jwtDecode } from 'jwt-decode';
-import { API_URL } from '../config';
+import { API_URL, AUTH_CONFIG } from '../config';
 
 // 配置axios默认设置
 axios.defaults.withCredentials = true;
 
 export const AuthContext = createContext();
 
+export const useAuth = () => useContext(AuthContext);
+
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState('');
 
-  // 获取用户资料的方法 - 使用useCallback包装
-  const getUserProfile = useCallback(async () => {
-    try {
-      const response = await axios.get(`${API_URL}/auth/me`);
-      setCurrentUser(response.data.user);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error getting user profile:', error);
-      logout();
+  useEffect(() => {
+    // 组件挂载时，从localStorage中恢复用户信息
+    const token = localStorage.getItem(AUTH_CONFIG.TOKEN_KEY);
+    const user = localStorage.getItem(AUTH_CONFIG.USER_INFO_KEY)
+      ? JSON.parse(localStorage.getItem(AUTH_CONFIG.USER_INFO_KEY))
+      : null;
+
+    if (token && user) {
+      setCurrentUser(user);
+      setupAuthHeader(token);
     }
+    setLoading(false);
   }, []);
 
-  // 检查token是否有效
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        // 检查token是否过期
-        const decodedToken = jwtDecode(token);
-        const currentTime = Date.now() / 1000;
-        
-        if (decodedToken.exp < currentTime) {
-          // Token已过期
-          logout();
-        } else {
-          // 为所有请求设置auth头
-          axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-          
-          // 获取用户资料
-          getUserProfile();
-        }
-      } catch (error) {
-        console.error('Token validation error:', error);
-        logout();
-      }
-    } else {
-      setLoading(false);
-    }
-  }, [getUserProfile]);
-
-  // Register a new user
-  const register = async (username, email, password) => {
-    try {
-      setError(null);
-      const response = await axios.post(`${API_URL}/auth/register`, {
-        username,
-        email,
-        password
-      });
-      
-      const { token, user } = response.data;
-      
-      // Save token to localStorage
-      localStorage.setItem('token', token);
-      
-      // Set auth header for all requests
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      
-      // Set current user
-      setCurrentUser(user);
-      
-      return user;
-    } catch (error) {
-      setError(error.response?.data?.message || 'Registration failed');
-      throw error;
-    }
-  };
-
-  // Login a user
   const login = async (email, password) => {
     try {
-      setError(null);
-      const response = await axios.post(`${API_URL}/auth/login`, {
-        email,
-        password
-      });
+      setError('');
+      setLoading(true);
+      const response = await axios.post(`${API_URL}/auth/login`, { email, password });
       
-      const { token, user } = response.data;
-      
-      // Save token to localStorage
-      localStorage.setItem('token', token);
-      
-      // Set auth header for all requests
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      
-      // Set current user
-      setCurrentUser(user);
-      
-      return user;
-    } catch (error) {
-      setError(error.response?.data?.message || 'Login failed');
-      throw error;
+      if (response.data && response.data.token) {
+        localStorage.setItem(AUTH_CONFIG.TOKEN_KEY, response.data.token);
+        localStorage.setItem(AUTH_CONFIG.USER_INFO_KEY, JSON.stringify(response.data.user));
+        setCurrentUser(response.data.user);
+        setupAuthHeader(response.data.token);
+        return response.data;
+      } else {
+        throw new Error('登录响应中未包含Token');
+      }
+    } catch (err) {
+      console.error('登录失败:', err);
+      setError(err.response?.data?.message || '登录失败，请重试');
+      throw err;
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Logout a user
+  const register = async (userData) => {
+    try {
+      setError('');
+      setLoading(true);
+      const response = await axios.post(`${API_URL}/auth/register`, userData);
+      
+      if (response.data && response.data.token) {
+        localStorage.setItem(AUTH_CONFIG.TOKEN_KEY, response.data.token);
+        localStorage.setItem(AUTH_CONFIG.USER_INFO_KEY, JSON.stringify(response.data.user));
+        setCurrentUser(response.data.user);
+        setupAuthHeader(response.data.token);
+        return response.data;
+      } else {
+        throw new Error('注册响应中未包含Token');
+      }
+    } catch (err) {
+      console.error('注册失败:', err);
+      setError(err.response?.data?.message || '注册失败，请重试');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = () => {
-    // Remove token from localStorage
-    localStorage.removeItem('token');
-    
-    // Remove auth header
-    delete axios.defaults.headers.common['Authorization'];
-    
-    // Clear current user
+    localStorage.removeItem(AUTH_CONFIG.TOKEN_KEY);
+    localStorage.removeItem(AUTH_CONFIG.USER_INFO_KEY);
     setCurrentUser(null);
-    setLoading(false);
+    // 清除请求头中的认证信息
+    delete axios.defaults.headers.common['Authorization'];
+  };
+
+  // 设置请求头中的认证Token
+  const setupAuthHeader = (token) => {
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      delete axios.defaults.headers.common['Authorization'];
+    }
+  };
+
+  // 获取当前用户信息
+  const getCurrentUser = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_URL}/auth/me`);
+      const updatedUser = response.data.user;
+      setCurrentUser(updatedUser);
+      // 更新localStorage中的用户信息
+      localStorage.setItem(AUTH_CONFIG.USER_INFO_KEY, JSON.stringify(updatedUser));
+      return updatedUser;
+    } catch (err) {
+      console.error('获取用户信息失败:', err);
+      if (err.response?.status === 401) {
+        // Token可能过期，注销用户
+        logout();
+      }
+      throw err;
+    } finally {
+      setLoading(false);
+    }
   };
 
   // 添加更新用户资料的方法
@@ -134,19 +128,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        currentUser,
-        loading,
-        error,
-        register,
-        login,
-        logout,
-        updateProfile // 添加新方法
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = {
+    currentUser,
+    loading,
+    error,
+    login,
+    register,
+    logout,
+    getCurrentUser,
+    updateProfile
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

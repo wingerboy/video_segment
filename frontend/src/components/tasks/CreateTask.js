@@ -44,16 +44,10 @@ import {
   CloseCircle as CancelIcon
 } from '@mui/icons-material';
 import { uploadVideo, getAllVideos, getFullUrl } from '../../services/videoService';
-import { createTask } from '../../services/taskService';
+import { createTask, getAvailableModels } from '../../services/taskService';
 import { getUserBackgrounds, uploadBackground, getFullUrl as getBackgroundFullUrl } from '../../services/backgroundService';
 
-// 可用的分割模型
-const segmentationModels = [
-  { id: 'model1', name: '高精度模型', description: '准确度高，适合精细分割，处理时间较长' },
-  { id: 'model2', name: '标准模型（推荐）', description: '准确度和速度的平衡选择，适合大多数视频' },
-  { id: 'model3', name: '快速模型', description: '处理速度快，精度较低，适合简单场景' }
-];
-
+// CreateTask组件
 const CreateTask = () => {
   // 导航和路由
   const navigate = useNavigate();
@@ -85,7 +79,9 @@ const CreateTask = () => {
   const [backgroundFromLibrary, setBackgroundFromLibrary] = useState(null);
   
   // 模型选择
-  const [selectedModel, setSelectedModel] = useState('model2');
+  const [selectedModel, setSelectedModel] = useState('');
+  const [availableModels, setAvailableModels] = useState([]);
+  const [modelsLoading, setModelsLoading] = useState(false);
   
   // 任务状态
   const [taskCreated, setTaskCreated] = useState(false);
@@ -99,11 +95,42 @@ const CreateTask = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [dimensionsMatch, setDimensionsMatch] = useState(true);
 
-  // 加载背景库和视频库
+  // 加载背景库、视频库和可用模型
   useEffect(() => {
     fetchBackgrounds();
     fetchVideos();
+    fetchModels();
   }, []);
+
+  // 获取可用模型列表
+  const fetchModels = async () => {
+    setModelsLoading(true);
+    try {
+      const models = await getAvailableModels();
+      // 过滤掉modelAlias为'default'的模型
+      const filteredModels = models.filter(model => model.modelAlias !== 'default');
+      
+      // 如果过滤后没有模型，显示错误
+      if (filteredModels.length === 0) {
+        setError('没有可用的处理模型，请联系管理员');
+        setAvailableModels([]);
+        setSelectedModel('');
+      } else {
+        setAvailableModels(filteredModels);
+        // 设置默认选择的模型，如果有
+        // 尝试找到标记为推荐的模型
+        const recommendedModel = filteredModels.find(m => 
+          m.modelDescription?.toLowerCase().includes('推荐')
+        );
+        setSelectedModel(recommendedModel ? recommendedModel.modelAlias : filteredModels[0].modelAlias);
+      }
+    } catch (error) {
+      console.error('加载模型列表失败:', error);
+      setError('无法加载可用模型，请刷新页面重试');
+    } finally {
+      setModelsLoading(false);
+    }
+  };
 
   // 当视频加载完成时获取视频信息
   useEffect(() => {
@@ -241,43 +268,44 @@ const CreateTask = () => {
 
   // 确认并创建任务
   const confirmAndCreateTask = async () => {
+    setShowConfirmDialog(false);
+    setLoading(true);
+    setError('');
+
     try {
-      setLoading(true);
-      setError('');
-      setShowConfirmDialog(false);
-      
-      console.log('开始创建任务，视频ID:', videoId, '背景ID:', backgroundFromLibrary.id, '模型:', selectedModel);
-      
-      // 直接创建视频处理任务，不需要先调用startVideoSegmentation
-      const taskResult = await createTask(videoId, {
-        modelId: selectedModel,
-        backgroundId: backgroundFromLibrary.id
-      });
-      
-      console.log('任务创建结果:', taskResult);
-      
-      // 设置任务创建成功状态 - 处理嵌套在task对象中的任务ID
-      if (taskResult) {
-        // 服务器返回的任务ID可能在taskResult.id或taskResult.task.id中
-        const taskId = taskResult.id || (taskResult.task && taskResult.task.id);
-        
-        if (taskId) {
-          setTaskId(taskId);
-          setTaskCreated(true);
-          
-          // 3秒后自动跳转到仪表盘
-          setTimeout(() => {
-            navigate('/dashboard#tasks');
-          }, 3000);
-        } else {
-          throw new Error('创建任务失败，服务器未返回任务ID');
-        }
-      } else {
-        throw new Error('创建任务失败，服务器返回空数据');
+      // 确保有选择模型
+      if (!selectedModel) {
+        throw new Error('请选择处理模型');
       }
-    } catch (err) {
-      console.error('创建任务失败:', err);
-      setError('创建任务失败: ' + (err.message || '未知错误'));
+      
+      // 准备提交的数据
+      let taskData = {
+        videoId: videoId, // 必须有
+        modelAlias: selectedModel // 使用selectedModel作为modelAlias
+      };
+
+      // 如果有背景，添加背景ID
+      if (backgroundFromLibrary) {
+        taskData.backgroundId = backgroundFromLibrary.id;
+      }
+
+      console.log('创建任务数据:', taskData);
+      const response = await createTask(videoId, taskData);
+      console.log('任务创建响应:', response);
+
+      if (response && response.task) {
+        setTaskCreated(true);
+        setTaskId(response.task.id);
+        
+        // 成功后跳转到仪表盘页面而不是任务详情
+        setTimeout(() => {
+          navigate('/dashboard#tasks');
+        }, 1500);
+      } else {
+        setError('创建任务失败，请重试');
+      }
+    } catch (error) {
+      setError(error.message || '创建任务失败，请重试');
     } finally {
       setLoading(false);
     }
@@ -371,6 +399,56 @@ const CreateTask = () => {
     setShowVideoDialog(false);
   };
 
+  // 渲染模型选择部分
+  const renderModelSelection = () => (
+    <Box sx={{ py: 2 }}>
+      <Typography variant="h6" gutterBottom>选择处理模型</Typography>
+      <Divider sx={{ mb: 2 }} />
+      
+      {modelsLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
+          <CircularProgress size={32} />
+        </Box>
+      ) : (
+        <>
+          {availableModels.length > 0 ? (
+            <FormControl fullWidth margin="normal" required>
+              <InputLabel>选择模型</InputLabel>
+              <Select
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                label="选择模型"
+                error={!selectedModel}
+              >
+                {availableModels.map((model) => (
+                  <MenuItem key={model.modelAlias} value={model.modelAlias}>
+                    {model.modelAlias}
+                  </MenuItem>
+                ))}
+              </Select>
+              {selectedModel && (
+                <Box sx={{ mt: 2 }}>
+                  <Paper variant="outlined" sx={{ p: 2 }}>
+                    <Typography variant="subtitle1">
+                      {selectedModel}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {availableModels.find(m => m.modelAlias === selectedModel)?.modelDescription || '无描述'}
+                    </Typography>
+                  </Paper>
+                </Box>
+              )}
+            </FormControl>
+          ) : (
+            <Alert severity="error">
+              没有可用的处理模型，请联系管理员添加模型配置
+            </Alert>
+          )}
+        </>
+      )}
+    </Box>
+  );
+
   return (
     <Container maxWidth="md">
       <Paper elevation={3} sx={{ p: 3, mt: 4, borderRadius: 2 }}>
@@ -391,7 +469,7 @@ const CreateTask = () => {
               任务已成功创建！
             </Typography>
             <Typography variant="body1" color="textSecondary">
-              您的视频处理任务已加入队列，稍后将自动跳转到仪表盘查看进度。
+              您的视频处理任务已加入队列，稍后将自动跳转到仪表盘查看任务列表。
             </Typography>
           </Box>
         ) : (
@@ -485,34 +563,7 @@ const CreateTask = () => {
             <Divider sx={{ my: 3 }} />
             
             {/* 模型选择区域 */}
-            <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" gutterBottom>
-                3. 选择分割模型
-              </Typography>
-              
-              <FormControl fullWidth sx={{ mb: 3 }}>
-                <InputLabel id="model-select-label">选择分割模型</InputLabel>
-                <Select
-                  labelId="model-select-label"
-                  value={selectedModel}
-                  label="选择分割模型"
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                >
-                  {segmentationModels.map((model) => (
-                    <MenuItem key={model.id} value={model.id}>
-                      {model.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              
-              {/* 显示所选模型的说明 */}
-              <Paper variant="outlined" sx={{ p: 2 }}>
-                <Typography variant="body2" color="textSecondary">
-                  {segmentationModels.find(m => m.id === selectedModel)?.description}
-                </Typography>
-              </Paper>
-            </Box>
+            {renderModelSelection()}
             
             <Divider sx={{ my: 3 }} />
             
@@ -548,9 +599,16 @@ const CreateTask = () => {
             </Box>
           ) : backgrounds.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 4 }}>
-              <Typography variant="body1" color="textSecondary">
+              <Typography variant="body1" color="textSecondary" sx={{ mb: 2 }}>
                 背景库中没有可用的背景图片。
               </Typography>
+              <Button 
+                variant="contained" 
+                color="primary"
+                onClick={() => navigate('/dashboard#backgrounds')}
+              >
+                去上传背景
+              </Button>
             </Box>
           ) : (
             <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -608,9 +666,16 @@ const CreateTask = () => {
             </Box>
           ) : videos.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 4 }}>
-              <Typography variant="body1" color="textSecondary">
+              <Typography variant="body1" color="textSecondary" sx={{ mb: 2 }}>
                 视频库中没有可用的视频。
               </Typography>
+              <Button 
+                variant="contained" 
+                color="primary"
+                onClick={() => navigate('/dashboard#videos')}
+              >
+                去上传视频
+              </Button>
             </Box>
           ) : (
             <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -702,10 +767,7 @@ const CreateTask = () => {
             <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
               <Typography variant="subtitle1" gutterBottom>模型信息</Typography>
               <Typography variant="body2">
-                {segmentationModels.find(m => m.id === selectedModel)?.name}
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                {segmentationModels.find(m => m.id === selectedModel)?.description}
+                {selectedModel}
               </Typography>
             </Paper>
             

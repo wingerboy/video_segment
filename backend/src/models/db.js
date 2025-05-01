@@ -1,18 +1,16 @@
 const { Sequelize } = require('sequelize');
-const dotenv = require('dotenv');
-
-dotenv.config();
+const config = require('../config');
 
 // 创建Sequelize实例
 const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASSWORD,
+  config.DB_CONFIG.database,
+  config.DB_CONFIG.username,
+  config.DB_CONFIG.password,
   {
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    dialect: 'mysql',
-    logging: false, // 设置为true以在控制台查看SQL查询
+    host: config.DB_CONFIG.host,
+    port: config.DB_CONFIG.port,
+    dialect: config.DB_CONFIG.dialect,
+    logging: config.DB_CONFIG.logging,
     dialectOptions: {
       // 您可能需要其他选项，如SSL
       // ssl: {

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_URL, API_URL_JAVA } from '../config';
+import { API_URL, AUTH_CONFIG } from '../config';
 
 // 创建axios实例
 const api = axios.create({
@@ -9,29 +9,10 @@ const api = axios.create({
   }
 });
 
-// 创建Java API的axios实例
-const apiJava = axios.create({
-  baseURL: API_URL_JAVA,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-});
-
 // 为两个API实例添加请求拦截器，处理认证
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-apiJava.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem(AUTH_CONFIG.TOKEN_KEY);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -52,42 +33,6 @@ export const createTask = async (videoId, options) => {
       videoId,
       ...options
     });
-    return response.data;
-  } catch (error) {
-    console.error('创建任务失败:', error);
-    throw error;
-  }
-};
-
-/**
- * 创建视频处理任务 (Java API)
- * @param {Object} params 任务参数
- * @returns {Promise<Object>} 任务信息
- */
-export const createTaskV2 = async (params) => {
-  try {
-    const formData = new FormData();
-    // 将params对象中的每个属性添加到formData
-    Object.keys(params).forEach(key => {
-      if (params[key] !== undefined && params[key] !== null) {
-        // 特殊处理videoId和backgroundId，确保是数字
-        if (key === 'videoId' || key === 'backgroundId') {
-          formData.append(key, Number(params[key]));
-        } else {
-          formData.append(key, params[key]);
-        }
-      }
-    });
-
-    const response = await apiJava.post('/task/create', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-    if(response?.data?.code !== 0){
-      throw new Error(response?.data?.msg || '创建任务失败');
-    }
-
     return response.data;
   } catch (error) {
     console.error('创建任务失败:', error);
@@ -141,27 +86,6 @@ export const getAllTasks = async () => {
 };
 
 /**
- * 获取所有任务 (Java API)
- * @param {Object} params 查询参数
- * @returns {Promise<Array>} 任务列表
- */
-export const getAllTasksV2 = async (params) => {
-  try {
-    const {data} = await apiJava.post('/task/list', params);
-
-    if(data?.code !== 0){
-      throw new Error(data?.msg || '获取任务列表失败');
-    }
-
-    // 确保返回数组
-    return data?.data || [];
-  } catch (error) {
-    console.error('获取任务列表失败:', error);
-    throw error;
-  }
-};
-
-/**
  * 取消任务
  * @param {string} taskId 任务ID
  * @returns {Promise<Object>} 操作结果
@@ -204,14 +128,30 @@ export const getInterfaceUsageStats = async () => {
   }
 };
 
+/**
+ * 获取可用的模型列表
+ * @returns {Promise<Array>} 可用模型列表，包含模型别名和描述
+ */
+export const getAvailableModels = async () => {
+  try {
+    const response = await api.get('/tasks/models');
+    return response.data.models || [];
+  } catch (error) {
+    console.error('获取可用模型列表失败:', error);
+    // 如果API请求失败，返回一个默认的模型列表
+    return [
+      { modelAlias: '标准模型', modelDescription: '默认模型，适合大多数视频' }
+    ];
+  }
+};
+
 export default {
   createTask,
-  createTaskV2,
   getTaskById,
   getTaskStatus,
   getAllTasks,
-  getAllTasksV2,
   cancelTask,
   getModelUsageStats,
-  getInterfaceUsageStats
+  getInterfaceUsageStats,
+  getAvailableModels
 }; 

@@ -96,10 +96,16 @@ const Task = sequelize.define('Task', {
     comment: '任务费用'
   },
   modelName: {
-    type: DataTypes.ENUM('normal', 'quick', 'slow'),
-    defaultValue: 'normal',
+    type: DataTypes.STRING,
+    defaultValue: '',
     allowNull: false,
     comment: '模型名'
+  },
+  modelAlias: {
+    type: DataTypes.STRING,
+    defaultValue: '',
+    allowNull: false,
+    comment: '模型别名'
   }
 }, {
   tableName: 'tasks',

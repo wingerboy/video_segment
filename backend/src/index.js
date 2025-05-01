@@ -7,6 +7,9 @@ const backgroundRoutes = require('./routes/backgrounds');
 const taskRoutes = require('./routes/tasks');
 const accountRoutes = require('./routes/account');
 const path = require('path');
+const taskScheduler = require('./services/taskScheduler');
+const config = require('./config');
+const fs = require('fs');
 
 // Load environment variables
 dotenv.config();
@@ -15,14 +18,13 @@ dotenv.config();
 require('./models');
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = config.PORT;
 
 // CORS配置
 const corsOptions = {
   origin: function(origin, callback) {
-    const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001'];
-    // 允许没有origin的请求（比如移动应用或curl等工具发起的请求）
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    // 使用配置中的CORS_ORIGINS
+    if (!origin || config.CORS_ORIGINS.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -48,37 +50,33 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 配置静态文件服务，使用环境变量配置物理上传目录
-const PHYSICAL_VIDEOS_DIR = process.env.PHYSICAL_VIDEOS_DIR || path.join(__dirname, '../uploads/videos');
-const VIRTUAL_VIDEOS_PATH = process.env.UPLOAD_URL_PATH || 'videos';
+// 配置静态文件服务，使用配置中的目录
+const PHYSICAL_VIDEOS_DIR = config.PHYSICAL_VIDEOS_DIR;
+const VIRTUAL_VIDEOS_PATH = config.UPLOAD_URL_PATH;
 
 // 背景图片的静态文件服务配置
-const PHYSICAL_BACKGROUNDS_DIR = process.env.PHYSICAL_BACKGROUNDS_DIR || path.join(__dirname, '../uploads/backgrounds');
-const VIRTUAL_BACKGROUNDS_PATH = process.env.UPLOAD_BACKGROUNDS_URL_PATH || 'backgrounds';
+const PHYSICAL_BACKGROUNDS_DIR = config.PHYSICAL_BACKGROUNDS_DIR;
+const VIRTUAL_BACKGROUNDS_PATH = config.UPLOAD_BACKGROUNDS_URL_PATH;
 
-// 旧的可能存在数据的路径（为了兼容性）
-const OLD_VIDEOS_DIR = path.join(__dirname, '../uploads/videos');
-const OLD_BACKGROUNDS_DIR = path.join(__dirname, '../uploads/background');
-const FULL_VIDEOS_DIR = '/Users/wingerliu/Downloads/windsurf/video_segment/uploads/videos';
-const FULL_BACKGROUNDS_DIR = '/Users/wingerliu/Downloads/windsurf/video_segment/uploads/background';
+// 确保上传目录存在
+const ensureDir = (dirPath) => {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+    console.log('创建目录:', dirPath);
+  }
+};
 
-// 配置静态文件服务，将虚拟路径映射到多个物理目录（按优先级顺序）
-// 这样可以同时支持多个存储位置
-app.use(`/${VIRTUAL_VIDEOS_PATH}`, [
-  express.static(PHYSICAL_VIDEOS_DIR),  // 新配置的路径（首选）
-  express.static(FULL_VIDEOS_DIR)       // 老的绝对路径（备选）
-]);
+// 创建必要的目录
+ensureDir(PHYSICAL_VIDEOS_DIR);
+ensureDir(PHYSICAL_BACKGROUNDS_DIR);
 
-app.use(`/${VIRTUAL_BACKGROUNDS_PATH}`, [
-  express.static(PHYSICAL_BACKGROUNDS_DIR),  // 新配置的路径（首选）
-  express.static(FULL_BACKGROUNDS_DIR)       // 老的绝对路径（备选）
-]);
+// 配置静态文件服务
+app.use(`/${VIRTUAL_VIDEOS_PATH}`, express.static(PHYSICAL_VIDEOS_DIR));
+app.use(`/${VIRTUAL_BACKGROUNDS_PATH}`, express.static(PHYSICAL_BACKGROUNDS_DIR));
 
-console.log('==== 静态文件服务多路径配置 ====');
-console.log(`视频虚拟路径 /${VIRTUAL_VIDEOS_PATH} 映射到:`);
-console.log(`- 主路径: ${PHYSICAL_VIDEOS_DIR}`);
-console.log(`\n背景虚拟路径 /${VIRTUAL_BACKGROUNDS_PATH} 映射到:`);
-console.log(`- 主路径: ${PHYSICAL_BACKGROUNDS_DIR}`);
+console.log('==== 静态文件服务配置 ====');
+console.log(`视频虚拟路径 /${VIRTUAL_VIDEOS_PATH} 映射到 ${PHYSICAL_VIDEOS_DIR}`);
+console.log(`背景虚拟路径 /${VIRTUAL_BACKGROUNDS_PATH} 映射到 ${PHYSICAL_BACKGROUNDS_DIR}`);
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -93,6 +91,29 @@ app.get('/', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(PORT, async () => {
+  console.log(`服务器已启动: ${config.API_BASE_URL}`);
+  
+  // 启动任务调度器
+  try {
+    await taskScheduler.start();
+    console.log('任务调度器已启动');
+  } catch (error) {
+    console.error('启动任务调度器失败:', error);
+  }
+});
+
+// 处理进程退出
+process.on('SIGINT', async () => {
+  console.log('服务器关闭中...');
+  
+  try {
+    // 停止任务调度器
+    await taskScheduler.stop();
+    console.log('任务调度器已停止');
+  } catch (error) {
+    console.error('停止任务调度器失败:', error);
+  }
+  
+  process.exit(0);
 }); 

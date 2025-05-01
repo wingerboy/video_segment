@@ -3,13 +3,14 @@ const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 const { authenticate } = require('../middleware/auth');
 const { Op } = require('sequelize');
+const config = require('../config');
 
 const router = express.Router();
 
 // 预检请求的处理
 router.options('*', (req, res) => {
   // 根据请求的Origin设置响应头
-  const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001'];
+  const allowedOrigins = config.CORS_ORIGINS;
   const origin = req.headers.origin;
   
   if (allowedOrigins.includes(origin)) {
@@ -47,8 +48,8 @@ router.post('/register', async (req, res) => {
     });
     
     // Generate JWT token
-    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-      expiresIn: '7d'
+    const token = jwt.sign({ id: user.id, email: user.email }, config.JWT_SECRET, {
+      expiresIn: config.JWT_EXPIRES_IN
     });
     
     res.status(201).json({
@@ -90,8 +91,8 @@ router.post('/login', async (req, res) => {
     }
     
     // Generate JWT token
-    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-      expiresIn: '7d'
+    const token = jwt.sign({ id: user.id, email: user.email }, config.JWT_SECRET, {
+      expiresIn: config.JWT_EXPIRES_IN
     });
     
     res.status(200).json({

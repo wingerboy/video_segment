@@ -40,12 +40,13 @@ import {
 import { 
   uploadBackground, 
   calculateMD5,
-  getUserBackgrounds
+  getAllBackgrounds as getUserBackgrounds
 } from '../../services/backgroundService';
 import { styled } from '@mui/material/styles';
+import { UPLOAD_CONFIG } from '../../config';
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_FILE_SIZE = UPLOAD_CONFIG.MAX_BACKGROUND_SIZE;
+const ALLOWED_FILE_TYPES = UPLOAD_CONFIG.ALLOWED_IMAGE_TYPES;
 
 // 自定义上传input样式
 const VisuallyHiddenInput = styled('input')({
@@ -154,7 +155,7 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
     
     // 检查文件类型
     if (!ALLOWED_FILE_TYPES.includes(file.type)) {
-      setFileError('不支持的文件类型。请上传 JPEG, PNG 或 WebP 格式的图片。');
+      setFileError(`不支持的文件类型。请上传${UPLOAD_CONFIG.IMAGE_FORMAT_SUPPORT_TEXT}。`);
       return false;
     }
     

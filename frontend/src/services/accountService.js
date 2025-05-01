@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_URL } from '../config';
+import { API_URL, AUTH_CONFIG } from '../config';
 
 /**
  * 设置请求头中的认证令牌
@@ -20,7 +20,7 @@ const setAuthToken = (token) => {
  */
 const getTransactions = async (type = null) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem(AUTH_CONFIG.TOKEN_KEY);
     setAuthToken(token);
 
     const url = type 
@@ -44,7 +44,7 @@ const getTransactions = async (type = null) => {
  */
 const rechargeAccount = async (amount, externalTransactionId = null, description = null) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem(AUTH_CONFIG.TOKEN_KEY);
     setAuthToken(token);
 
     const payload = {
@@ -70,7 +70,7 @@ const rechargeAccount = async (amount, externalTransactionId = null, description
  */
 const consumeAccount = async (amount, taskId = null, description = null) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem(AUTH_CONFIG.TOKEN_KEY);
     setAuthToken(token);
 
     const payload = {
@@ -97,7 +97,7 @@ const consumeAccount = async (amount, taskId = null, description = null) => {
  */
 const refundAccount = async (userId, amount, taskId = null, description = null) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem(AUTH_CONFIG.TOKEN_KEY);
     setAuthToken(token);
 
     const payload = {
@@ -123,7 +123,7 @@ const refundAccount = async (userId, amount, taskId = null, description = null) 
  */
 const getUserTransactions = async (userId, type = null) => {
   try {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem(AUTH_CONFIG.TOKEN_KEY);
     setAuthToken(token);
 
     const url = type 

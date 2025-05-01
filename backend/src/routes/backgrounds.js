@@ -7,6 +7,7 @@ const dotenv = require('dotenv');
 const sharp = require('sharp'); // 引入sharp库
 const { authenticate } = require('../middleware/auth');
 const { Background } = require('../models');
+const config = require('../config');
 
 // 加载环境变量
 dotenv.config();
@@ -14,9 +15,9 @@ dotenv.config();
 const router = express.Router();
 
 // 获取配置的上传路径
-const UPLOAD_BACKGROUNDS_DIR = process.env.UPLOAD_BACKGROUNDS_DIR || 'uploads/backgrounds';
-const UPLOAD_URL_PATH = process.env.UPLOAD_BACKGROUNDS_URL_PATH || 'backgrounds'; // 虚拟路径，用于URL访问
-const UPLOAD_FILE_SIZE_LIMIT = parseInt(process.env.UPLOAD_FILE_SIZE_LIMIT || '5'); // 默认5MB
+const UPLOAD_BACKGROUNDS_DIR = config.PHYSICAL_BACKGROUNDS_DIR;
+const UPLOAD_URL_PATH = config.UPLOAD_BACKGROUNDS_URL_PATH;
+const UPLOAD_FILE_SIZE_LIMIT = config.UPLOAD_FILE_SIZE_LIMIT;
 
 console.log('背景图片上传配置:');
 console.log(`- 物理路径配置: ${UPLOAD_BACKGROUNDS_DIR}`);

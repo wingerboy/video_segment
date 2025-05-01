@@ -6,10 +6,10 @@ const crypto = require('crypto');
 const dotenv = require('dotenv');
 const { authenticate } = require('../middleware/auth');
 const { Video, sequelize } = require('../models');
-const { extractVideoQueue } = require('../services/queue');
 const { Op } = require('sequelize'); // 直接从sequelize导入Op操作符
 const ffmpeg = require('fluent-ffmpeg');
 const ffprobe = require('ffprobe-static');
+const config = require('../config');
 
 // 设置ffprobe路径
 ffmpeg.setFfprobePath(ffprobe.path);
@@ -20,9 +20,9 @@ dotenv.config();
 const router = express.Router();
 
 // 获取配置的上传路径
-const UPLOAD_VIDEOS_DIR = process.env.UPLOAD_VIDEOS_DIR || 'uploads/videos';
-const UPLOAD_URL_PATH = process.env.UPLOAD_URL_PATH || 'videos'; // 虚拟路径，用于URL访问
-const UPLOAD_FILE_SIZE_LIMIT = parseInt(process.env.UPLOAD_FILE_SIZE_LIMIT || '100'); // 默认100MB
+const UPLOAD_VIDEOS_DIR = config.PHYSICAL_VIDEOS_DIR;
+const UPLOAD_URL_PATH = config.UPLOAD_URL_PATH;
+const UPLOAD_FILE_SIZE_LIMIT = config.UPLOAD_FILE_SIZE_LIMIT;
 
 console.log('视频上传配置:');
 console.log(`- 物理路径配置: ${UPLOAD_VIDEOS_DIR}`);
@@ -54,7 +54,7 @@ ensureDir(UPLOAD_VIDEOS_DIR);
 // 预检请求的处理
 router.options('*', (req, res) => {
   // 根据请求的Origin设置响应头
-  const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001'];
+  const allowedOrigins = config.CORS_ORIGINS;
   const origin = req.headers.origin;
   
   if (allowedOrigins.includes(origin)) {

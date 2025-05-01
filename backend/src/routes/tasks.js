@@ -4,15 +4,12 @@ const path = require('path');
 const { Op } = require('sequelize');
 const { authenticate } = require('../middleware/auth');
 const { Task, Video, Background, ModelUsage, InterfaceUsage, sequelize } = require('../models');
+const config = require('../config');
 
 // 加载环境变量
 dotenv.config();
 
 const router = express.Router();
-
-// 获取配置的上传路径
-const UPLOAD_RESULTS_DIR = process.env.UPLOAD_RESULTS_DIR || 'uploads/results';
-const UPLOAD_MASKS_DIR = process.env.UPLOAD_MASKS_DIR || 'uploads/masks';
 
 // 获取当前用户的所有任务
 router.get('/user', authenticate, async (req, res) => {
@@ -34,7 +31,10 @@ router.get('/user', authenticate, async (req, res) => {
           attributes: ['id', 'backgroundName', 'backgroundDim', 'backgroundSize'],
           required: false
         }
-      ]
+      ],
+      attributes: { 
+        exclude: ['modelName'] // 排除modelName字段，但保留所有其他字段，包括modelAlias
+      }
     });
     
     // 格式化数据以包含更多信息
@@ -48,7 +48,9 @@ router.get('/user', authenticate, async (req, res) => {
         videoSize: plainTask.video ? plainTask.video.oriVideoSize : null,
         backgroundName: plainTask.background ? plainTask.background.backgroundName : null,
         backgroundDim: plainTask.background ? plainTask.background.backgroundDim : null,
-        backgroundSize: plainTask.background ? plainTask.background.backgroundSize : null
+        backgroundSize: plainTask.background ? plainTask.background.backgroundSize : null,
+        // 确保modelAlias字段存在，如果为空则使用默认值
+        modelAlias: plainTask.modelAlias || '未知模型'
       };
     });
     
@@ -73,7 +75,11 @@ router.get('/user/:id', authenticate, async (req, res) => {
       return res.status(404).json({ message: '任务不存在' });
     }
     
-    res.status(200).json({ task });
+    // 去除modelName字段
+    const taskObj = task.get({ plain: true });
+    const { modelName, ...taskWithoutModelName } = taskObj;
+    
+    res.status(200).json({ task: taskWithoutModelName });
   } catch (error) {
     console.error('获取任务详情失败:', error);
     res.status(500).json({ message: '获取任务详情失败', error: error.message });
@@ -82,7 +88,7 @@ router.get('/user/:id', authenticate, async (req, res) => {
 
 // 创建新任务
 router.post('/create', authenticate, async (req, res) => {
-  const { videoId, backgroundId, modelName, interfaceAddress } = req.body;
+  const { videoId, backgroundId, modelName, modelAlias, interfaceAddress } = req.body;
   
   if (!videoId) {
     return res.status(400).json({ message: '缺少必要参数: videoId' });
@@ -120,36 +126,61 @@ router.post('/create', authenticate, async (req, res) => {
       }
     }
     
-    // 记录模型使用情况
-    const modelNameToUse = modelName || 'normal';
-    await ModelUsage.incrementUsage(modelNameToUse);
+    // 设置模型信息
+    let modelNameToUse = '';
+    let modelAliasToUse = modelAlias || '';
     
-    // 记录接口使用情况
-    const interfaceToUse = interfaceAddress || 'default';
-    await InterfaceUsage.incrementRequest(interfaceToUse);
+    // 查找是否已存在传入的modelAlias对应的模型
+    let modelInfo = null;
+    if (modelAlias) {
+      // 通过modelAlias查找
+      modelInfo = await ModelUsage.findOne({
+        where: { modelAlias }
+      });
+    } else if (modelName) {
+      // 兼容旧的处理方式，通过modelName查找
+      modelInfo = await ModelUsage.findByModelName(modelName);
+    }
+    
+    if (modelInfo) {
+      // 使用找到的模型信息
+      modelNameToUse = modelInfo.modelName;
+      modelAliasToUse = modelInfo.modelAlias;
+      // 增加使用次数
+      await ModelUsage.incrementUsage(modelNameToUse);
+    } else {
+      // 如果找不到匹配的模型，尝试获取默认模型
+      const defaultModel = await ModelUsage.findOne({
+        order: [['modelUsageCnt', 'DESC']] // 获取使用最多的模型作为默认
+      });
+      
+      if (defaultModel) {
+        modelNameToUse = defaultModel.modelName;
+        modelAliasToUse = defaultModel.modelAlias;
+        // 增加使用次数
+        await ModelUsage.incrementUsage(modelNameToUse);
+      } else {
+        // 如果仍找不到，返回错误
+        return res.status(400).json({ message: '无法找到可用的处理模型' });
+      }
+    }
+    
+    console.log('创建任务使用模型:', { modelNameToUse, modelAliasToUse, 前端传入: { modelName, modelAlias } });
     
     // 创建任务
     const task = await Task.create({
       email: req.user.email,
-      interfaceAddress: interfaceToUse,
+      interfaceAddress: '',
       oriVideoId: videoId,
       backgroundId: backgroundId || 0,
       oriVideoPath: video.oriVideoPath,
-      foreVideoPath: video.foreVideoPath || '',
+      foreVideoPath: '',
       backgroundPath: background ? background.backgroundPath : '',
-      outputVideoPath: background ? path.join(UPLOAD_RESULTS_DIR, `result_${videoId}_${Date.now()}.mp4`).replace(/\\/g, '/') : '',
+      outputVideoPath: '',
       taskStatus: 'waiting',
-      modelName: modelNameToUse
+      modelName: modelNameToUse,
+      modelAlias: modelAliasToUse // 设置模型别名
     });
-    
-    // 更新视频和背景图使用次数
-    video.oriVideoUsageCnt += 1;
-    await video.save();
-    
-    if (background) {
-      background.backgroundUsageCnt += 1;
-      await background.save();
-    }
     
     res.status(201).json({ 
       message: '任务创建成功',
@@ -159,7 +190,7 @@ router.post('/create', authenticate, async (req, res) => {
         taskStartTime: task.taskStartTime,
         oriVideoPath: task.oriVideoPath,
         backgroundPath: task.backgroundPath,
-        modelName: task.modelName,
+        modelAlias: task.modelAlias, // 只返回模型别名，不返回modelName
         // 返回视频和背景图的相关信息，以便前端可以显示
         video: {
           id: video.id,
@@ -213,7 +244,7 @@ router.get('/status/:id', authenticate, async (req, res) => {
         id: req.params.id,
         email: req.user.email
       },
-      attributes: ['id', 'taskStatus', 'taskStartTime', 'taskUpdateTime', 'taskDuration', 'oriVideoPath', 'backgroundPath', 'foreVideoPath', 'outputVideoPath', 'modelName', 'interfaceAddress']
+      attributes: ['id', 'taskStatus', 'taskStartTime', 'taskUpdateTime', 'taskDuration', 'oriVideoPath', 'backgroundPath', 'foreVideoPath', 'outputVideoPath', 'modelAlias', 'interfaceAddress']
     });
     
     if (!task) {
@@ -278,7 +309,7 @@ router.get('/status/:id', authenticate, async (req, res) => {
       backgroundPath: task.backgroundPath,
       foreVideoPath: task.foreVideoPath,
       outputVideoPath: task.outputVideoPath,
-      modelName: task.modelName,
+      modelAlias: task.modelAlias, // 只返回模型别名
       video: videoInfo,
       background: backgroundInfo
     });
@@ -300,7 +331,14 @@ router.get('/admin/models', authenticate, async (req, res) => {
       order: [['modelUsageCnt', 'DESC']]
     });
     
-    res.status(200).json({ modelUsages });
+    // 过滤掉敏感信息，只返回modelAlias和使用统计
+    const filteredUsages = modelUsages.map(model => {
+      const modelData = model.get({ plain: true });
+      const { modelName, ...filteredData } = modelData;
+      return filteredData;
+    });
+    
+    res.status(200).json({ modelUsages: filteredUsages });
   } catch (error) {
     console.error('获取模型使用统计失败:', error);
     res.status(500).json({ message: '获取模型使用统计失败', error: error.message });
@@ -323,6 +361,131 @@ router.get('/admin/interfaces', authenticate, async (req, res) => {
   } catch (error) {
     console.error('获取接口使用统计失败:', error);
     res.status(500).json({ message: '获取接口使用统计失败', error: error.message });
+  }
+});
+
+// 获取可用模型列表
+router.get('/models', authenticate, async (req, res) => {
+  try {
+    const models = await ModelUsage.getAvailableModels();
+    
+    res.status(200).json({
+      models: models.map(model => ({
+        modelAlias: model.modelAlias || model.modelName,
+        modelDescription: model.modelDescription || ''
+      }))
+    });
+  } catch (error) {
+    console.error('获取可用模型列表失败:', error);
+    res.status(500).json({ message: '获取可用模型列表失败', error: error.message });
+  }
+});
+
+// 任务回调接口 - 由接口服务调用更新任务状态
+router.post('/callback', async (req, res) => {
+  const { taskId, Identification, status, progress, message } = req.body;
+  
+  console.log('收到任务回调:', req.body);
+  
+  // 验证必要参数
+  if (!taskId || !Identification || !status) {
+    return res.status(400).json({ success: false, message: '缺少必要参数' });
+  }
+  
+  // 验证身份标识
+  if (Identification !== config.INTERFACE_IDENTIFICATION) {
+    return res.status(403).json({ success: false, message: '身份标识无效' });
+  }
+  
+  try {
+    // 1. 查找任务
+    const task = await Task.findByPk(taskId);
+    
+    if (!task) {
+      return res.status(404).json({ success: false, message: '任务不存在' });
+    }
+    
+    // 2. 更新任务状态
+    let shouldReleaseInterface = false;
+    
+    switch (status.toLowerCase()) {
+      case 'processing':
+        task.taskStatus = 'processing';
+        task.taskProgress = progress || task.taskProgress;
+        break;
+      
+      case 'completed':
+        task.taskStatus = 'completed';
+        task.taskProgress = 100;
+        task.taskUpdateTime = new Date();
+        shouldReleaseInterface = true;
+        break;
+      
+      case 'failed':
+        task.taskStatus = 'failed';
+        task.taskUpdateTime = new Date();
+        shouldReleaseInterface = true;
+        break;
+        
+      default:
+        return res.status(400).json({ success: false, message: '无效的状态' });
+    }
+    
+    // 更新任务消息
+    if (message) {
+      task.taskRespose = message;
+    }
+    
+    await task.save();
+    
+    console.log(`任务 #${taskId} 状态更新为: ${task.taskStatus}, 进度: ${task.taskProgress}%, 消息: ${message || '无'}`);
+    
+    // 3. 如果任务完成或失败，释放接口资源
+    if (shouldReleaseInterface && task.interfaceAddress) {
+      console.log(`释放接口: ${task.interfaceAddress}`);
+      
+      // 更新接口使用统计
+      if (status.toLowerCase() === 'completed') {
+        await InterfaceUsage.incrementResponse(task.interfaceAddress, true);
+      } else {
+        await InterfaceUsage.incrementResponse(task.interfaceAddress, false);
+      }
+      
+      // 释放接口，使其可以处理下一个任务
+      await InterfaceUsage.releaseInterface(task.interfaceAddress);
+    }
+    
+    res.status(200).json({ success: true, message: '任务状态已更新' });
+  } catch (error) {
+    console.error('更新任务状态失败:', error);
+    res.status(500).json({ success: false, message: '更新任务状态失败', error: error.message });
+  }
+});
+
+// 接口心跳接口 - 由接口服务定期调用，表明接口仍在运行
+router.post('/interface/heartbeat', async (req, res) => {
+  const { interfaceAddress, Identification } = req.body;
+  
+  // 验证必要参数
+  if (!interfaceAddress || !Identification) {
+    return res.status(400).json({ success: false, message: '缺少必要参数' });
+  }
+  
+  // 验证身份标识
+  if (Identification !== config.INTERFACE_IDENTIFICATION) {
+    return res.status(403).json({ success: false, message: '身份标识无效' });
+  }
+  
+  try {
+    // 更新接口心跳时间
+    await InterfaceUsage.updateHeartbeat(interfaceAddress);
+    
+    console.log(`接收到接口心跳: ${interfaceAddress}`);
+    
+    res.status(200).json({ success: true, message: '心跳已更新' });
+  } catch (error) {
+    console.error('更新接口心跳失败:', error);
+    res.status(500).json({ success: false, message: '更新心跳失败', error: error.message });
   }
 });
 

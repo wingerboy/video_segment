@@ -1,48 +1,49 @@
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
+const config = require('../config');
 
 /**
  * 用户身份验证中间件
  */
 const authenticate = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    // 获取请求头中的Authorization
+    const authHeader = req.headers.authorization;
     
-    if (!token) {
-      return res.status(401).json({ 
-        success: false,
-        message: '需要身份验证' 
-      });
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: '认证失败: 缺少Token' });
     }
     
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    let user;
+    // 提取Token
+    const token = authHeader.split(' ')[1];
     
-    // 如果token中包含email，则通过email查找
-    if (decoded.email) {
-      user = await User.findByEmail(decoded.email);
-    } else if (decoded.id) {
-      // 向后兼容：如果token中包含id，则通过id查找
-      user = await User.findByPk(decoded.id);
-    } else {
-      throw new Error('无效的Token');
-    }
+    // 验证Token
+    const decoded = jwt.verify(token, config.JWT_SECRET);
+    
+    // 检查用户是否存在
+    const user = await User.findOne({ where: { id: decoded.id } });
     
     if (!user) {
-      return res.status(401).json({ 
-        success: false,
-        message: '用户不存在' 
-      });
+      return res.status(401).json({ message: '认证失败: 用户不存在' });
     }
     
+    // 将用户信息添加到请求对象中
     req.user = user;
-    req.token = token;
+    
+    // 继续下一步
     next();
   } catch (error) {
-    res.status(401).json({ 
-      success: false,
-      message: '身份验证失败' 
-    });
+    console.error('认证失败:', error);
+    
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: '认证失败: Token已过期' });
+    }
+    
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: '认证失败: 无效的Token' });
+    }
+    
+    res.status(401).json({ message: '认证失败', error: error.message });
   }
 };
 

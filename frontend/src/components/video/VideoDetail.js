@@ -187,7 +187,7 @@ const VideoDetail = () => {
                   component="video"
                   controls
                   sx={{ width: '100%', maxHeight: '500px' }}
-                  image={`${API_BASE_URL}/${video.oriVideoPath}`}
+                  image={`${API_BASE_URL}/${video.oriVideoUrlPath}`}
                 />
               </Card>
             </Grid>

@@ -230,9 +230,7 @@ const TaskCard = ({ task, onCancel, isCancelling, formatDate, onDownloadResult }
             </Box>
             <Box sx={{ ml: 3 }}>
               <Typography variant="body2">
-                {task.modelName === 'normal' && '标准模型'}
-                {task.modelName === 'quick' && '快速模型'}
-                {task.modelName === 'slow' && '高精度模型'}
+                {task.modelAlias}
                 {!['normal', 'quick', 'slow'].includes(task.modelName) && task.modelName}
               </Typography>
             </Box>
