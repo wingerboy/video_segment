@@ -101,7 +101,7 @@ const VideoDetail = () => {
     try {
       await deleteVideo(id);
       setDeleteDialogOpen(false);
-      navigate('/dashboard');
+      navigate('/dashboard#videos');
     } catch (error) {
       console.error('删除视频失败:', error);
       setError('删除视频失败: ' + (error.response?.data?.message || error.message || '未知错误'));
@@ -130,7 +130,7 @@ const VideoDetail = () => {
       <Container>
         <Box sx={{ mt: 5 }}>
           <Typography color="error" gutterBottom>{error}</Typography>
-          <Button variant="outlined" onClick={() => navigate('/dashboard')}>
+          <Button variant="outlined" onClick={() => navigate('/dashboard#videos')}>
             返回仪表盘
           </Button>
         </Box>
@@ -143,7 +143,7 @@ const VideoDetail = () => {
       <Container>
         <Box sx={{ mt: 5 }}>
           <Typography gutterBottom>视频不存在或已被删除</Typography>
-          <Button variant="outlined" onClick={() => navigate('/dashboard')}>
+          <Button variant="outlined" onClick={() => navigate('/dashboard#videos')}>
             返回仪表盘
           </Button>
         </Box>
@@ -157,7 +157,7 @@ const VideoDetail = () => {
         <Button
           variant="text"
           startIcon={<ArrowBack />}
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate('/dashboard#videos')}
           sx={{ mb: 2 }}
         >
           返回仪表盘
@@ -204,47 +204,39 @@ const VideoDetail = () => {
                 </Typography>
                 
                 <Typography variant="body2" gutterBottom>
-                  <strong>视频大小:</strong> {video.oriVideoSize} MB
+                  <strong>视频名称:</strong> {video.oriVideoName || '未命名视频'}
                 </Typography>
-                
-                {video.oriVideoDim && (
-                  <Typography variant="body2" gutterBottom>
-                    <strong>视频尺寸:</strong> {video.oriVideoDim}
-                  </Typography>
-                )}
                 
                 <Typography variant="body2" gutterBottom>
                   <strong>使用次数:</strong> {video.oriVideoUsageCnt || 0}
                 </Typography>
                 
                 <Typography variant="body2" gutterBottom>
+                  <strong>编码格式:</strong> {video.oriVideoCodec || '未知'}
+                </Typography>
+                
+                <Typography variant="body2" gutterBottom>
+                  <strong>帧率:</strong> {video.oriVideoFrameRate ? `${video.oriVideoFrameRate} fps` : '未知'}
+                </Typography>
+                
+                <Typography variant="body2" gutterBottom>
+                  <strong>视频时长:</strong> {video.oriVideoDuration ? `${video.oriVideoDuration} 秒` : '未知'}
+                </Typography>
+                
+                <Typography variant="body2" gutterBottom>
+                  <strong>总帧数:</strong> {video.oriVideoFrameCnt || '未知'}
+                </Typography>
+                
+                <Typography variant="body2" gutterBottom>
+                  <strong>视频尺寸:</strong> {video.oriVideoDim || '未知'}
+                </Typography>
+                
+                <Typography variant="body2" gutterBottom>
+                  <strong>视频大小:</strong> {video.oriVideoSize ? `${video.oriVideoSize} MB` : '未知'}
+                </Typography>
+                
+                <Typography variant="body2" gutterBottom>
                   <strong>状态:</strong> {video.oriVideoStatus === 'exists' ? '可用' : video.oriVideoStatus}
-                </Typography>
-              </Box>
-              
-              <Divider sx={{ mb: 3 }} />
-              
-              {/* Processing Status */}
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle1" gutterBottom>
-                  处理状态
-                </Typography>
-                
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  {video.foreVideoPath ? (
-                    <CheckCircleOutline color="success" sx={{ mr: 1 }} />
-                  ) : video.oriVideoStatus === 'processing' ? (
-                    <CircularProgress size={20} sx={{ mr: 1 }} />
-                  ) : (
-                    <CheckCircleOutline color="disabled" sx={{ mr: 1 }} />
-                  )}
-                  <Typography variant="body2">
-                    前景提取 {video.foreVideoPath ? '已完成' : video.oriVideoStatus === 'processing' ? '进行中' : '待处理'}
-                  </Typography>
-                </Box>
-                
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                  您可以创建任务对视频进行进一步处理。
                 </Typography>
               </Box>
               
@@ -253,7 +245,7 @@ const VideoDetail = () => {
                 variant="contained" 
                 color="primary" 
                 fullWidth
-                onClick={() => navigate(`/videos/${id}/process`)}
+                onClick={() => navigate(`/segment?videoId=${id}`)}
               >
                 创建处理任务
               </Button>

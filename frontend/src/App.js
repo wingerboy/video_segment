@@ -83,7 +83,6 @@ const authenticatedRoutes = [
   { path: '/segment', element: <CreateTask /> },
   { path: '/videos/upload', element: <VideoUpload /> },
   { path: '/tasks/create', element: <CreateTask /> },
-  { path: '/videos/:id/process', element: <CreateTask /> },
   { path: '/videos/:id', element: <VideoDetail /> },
   { path: '/tasks/:id', element: <TaskDetails /> },
   // 背景路由 - 注意路径优先级顺序

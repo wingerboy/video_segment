@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -39,8 +39,8 @@ import {
 } from '@mui/icons-material';
 import { 
   uploadBackground, 
-  checkBackgroundExists,
-  calculateMD5
+  calculateMD5,
+  getUserBackgrounds
 } from '../../services/backgroundService';
 import { styled } from '@mui/material/styles';
 
@@ -106,6 +106,8 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [fileHash, setFileHash] = useState('');
   const [existingBackground, setExistingBackground] = useState(null);
+  const [backgrounds, setBackgrounds] = useState([]);
+  const [isCheckingExistence, setIsCheckingExistence] = useState(false);
   
   // 表单状态
   const [backgroundName, setBackgroundName] = useState('');
@@ -127,6 +129,24 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
     message: '',
     severity: 'info'
   });
+  
+  // 加载背景库
+  useEffect(() => {
+    const fetchBackgrounds = async () => {
+      try {
+        const backgroundsList = await getUserBackgrounds();
+        // 确保返回的是数组
+        const backgroundsArray = Array.isArray(backgroundsList) 
+          ? backgroundsList 
+          : (backgroundsList?.backgrounds || []);
+        setBackgrounds(backgroundsArray);
+      } catch (error) {
+        console.error('加载背景库失败:', error);
+      }
+    };
+    
+    fetchBackgrounds();
+  }, []);
   
   // 验证文件
   const validateFile = (file) => {
@@ -169,21 +189,35 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
         setBackgroundName(fileName);
       }
       
-      // 计算文件哈希值
-      const hash = await calculateFileHash(file);
-      setFileHash(hash);
+      // 计算文件哈希值并检查是否存在
+      setIsCheckingExistence(true);
+      setFileError('');
       
-      // 检查背景是否已存在
       try {
-        const exists = await checkBackgroundExists(hash);
-        if (exists && exists.exists) {
-          setExistingBackground(exists.background);
+        const hash = await calculateFileHash(file);
+        setFileHash(hash);
+        
+        // 在本地背景库中检查是否存在相同MD5的背景
+        const existingBg = backgrounds.find(bg => 
+          bg.backgroundMd5 === hash && bg.backgroundStatus === 'exists'
+        );
+        
+        if (existingBg) {
+          setExistingBackground(existingBg);
+          setFileError(`背景库中已存在相同的图片（${existingBg.backgroundName || '未命名背景'}），请勿重复上传。`);
           setExistsDialogOpen(true);
         }
       } catch (err) {
-        console.error('检查背景是否存在失败:', err);
+        console.error('计算文件哈希值失败:', err);
         // 忽略检查错误，继续上传流程
+      } finally {
+        setIsCheckingExistence(false);
       }
+    }
+    
+    // 重置文件输入以便重新选择相同文件
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
   
@@ -217,6 +251,16 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
       return;
     }
     
+    // 检查是否有文件错误（例如重复背景）
+    if (fileError) {
+      setSnackbar({
+        open: true,
+        message: fileError,
+        severity: 'error'
+      });
+      return;
+    }
+    
     setFormError('');
     setUploadError('');
     setIsUploading(true);
@@ -244,13 +288,25 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
       clearInterval(progressInterval);
       setUploadProgress(100);
       
-      if (response && response.id) {
-        // 上传成功
-        setUploadedBackground(response);
+      console.log('上传成功，响应数据:', response);
+      
+      // 处理响应
+      if (response && response.background && response.background.id) {
+        // 上传成功 - 使用正确的响应数据格式
+        const background = response.background;
+        
+        // 处理预览URL
+        const backgroundWithUrl = {
+          ...background,
+          url: background.backgroundUrlPath ? background.backgroundUrlPath : background.backgroundPath
+        };
+        
+        console.log('处理后的背景数据:', backgroundWithUrl);
+        setUploadedBackground(backgroundWithUrl);
         
         // 如果有成功回调，则调用
         if (typeof onUploadSuccess === 'function') {
-          onUploadSuccess(response);
+          onUploadSuccess(backgroundWithUrl);
         } else {
           // 否则显示成功对话框
           setSuccessDialogOpen(true);
@@ -260,8 +316,11 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
         handleClearFile();
         setBackgroundName('');
         setBackgroundDescription('');
+      } else {
+        throw new Error('服务器返回的背景数据格式不正确');
       }
     } catch (error) {
+      console.error('上传背景出错:', error);
       setUploadError(error.message || '上传失败，请重试');
       setSnackbar({
         open: true,
@@ -331,15 +390,17 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
                 <Button
                   component="label"
                   variant="contained"
-                  startIcon={<UploadIcon />}
+                  startIcon={isCheckingExistence ? <CircularProgress size={24} /> : <UploadIcon />}
                   sx={{ mt: 1 }}
+                  disabled={isCheckingExistence}
                 >
-                  选择图片
+                  {isCheckingExistence ? '检查中...' : '选择图片'}
                   <VisuallyHiddenInput 
                     type="file"
                     accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                     onChange={handleFileSelect}
                     ref={fileInputRef}
+                    disabled={isCheckingExistence}
                   />
                 </Button>
               </Box>
@@ -347,7 +408,11 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
           </PreviewBox>
           
           {fileError && (
-            <Alert severity="error" sx={{ mt: 1, mb: 2 }}>
+            <Alert 
+              severity="error" 
+              sx={{ mt: 1, mb: 2 }}
+              icon={<ErrorIcon />}
+            >
               {fileError}
             </Alert>
           )}
@@ -422,7 +487,7 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
               size="large"
               startIcon={isUploading ? <CircularProgress size={20} color="inherit" /> : <UploadIcon />}
               onClick={handleUpload}
-              disabled={!selectedFile || isUploading || !backgroundName.trim()}
+              disabled={!selectedFile || isUploading || !backgroundName.trim() || !!fileError || isCheckingExistence}
               fullWidth
             >
               {isUploading ? '上传中...' : '上传背景'}
@@ -524,15 +589,28 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
               <Paper variant="outlined" sx={{ p: 2, mt: 2, textAlign: 'left' }}>
                 <Grid container spacing={2}>
                   <Grid item xs={4}>
-                    <img
-                      src={uploadedBackground.url}
-                      alt="已上传的背景"
-                      style={{ width: '100%', height: 'auto' }}
-                    />
+                    {uploadedBackground.url ? (
+                      <img
+                        src={uploadedBackground.url}
+                        alt="已上传的背景"
+                        style={{ width: '100%', height: 'auto' }}
+                      />
+                    ) : (
+                      <Box sx={{ 
+                        width: '100%', 
+                        height: 100, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        bgcolor: 'grey.200' 
+                      }}>
+                        <ImageIcon color="disabled" />
+                      </Box>
+                    )}
                   </Grid>
                   <Grid item xs={8}>
                     <Typography variant="subtitle1">
-                      {uploadedBackground.name || '未命名背景'}
+                      {uploadedBackground.backgroundName || uploadedBackground.name || '未命名背景'}
                     </Typography>
                     {uploadedBackground.description && (
                       <Typography variant="body2" color="text.secondary">

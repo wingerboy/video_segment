@@ -57,25 +57,14 @@ AccountTransaction.belongsTo(User, {
   constraints: false
 });
 
-// 视频与任务关联
-Video.hasMany(Task, { 
-  foreignKey: 'oriVideoId',
-  sourceKey: 'id'
-});
-Task.belongsTo(Video, { 
-  foreignKey: 'oriVideoId',
-  targetKey: 'id'
-});
+// 设置模型关联关系
+// Task 与 Video 的关联
+Task.belongsTo(Video, { foreignKey: 'oriVideoId', as: 'video' });
+Video.hasMany(Task, { foreignKey: 'oriVideoId', as: 'tasks' });
 
-// 背景与任务关联
-Background.hasMany(Task, { 
-  foreignKey: 'backgroundId',
-  sourceKey: 'id'
-});
-Task.belongsTo(Background, { 
-  foreignKey: 'backgroundId',
-  targetKey: 'id'
-});
+// Task 与 Background 的关联
+Task.belongsTo(Background, { foreignKey: 'backgroundId', as: 'background' });
+Background.hasMany(Task, { foreignKey: 'backgroundId', as: 'tasks' });
 
 // 同步数据库表结构
 const syncDatabase = async () => {

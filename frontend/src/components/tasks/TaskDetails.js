@@ -115,7 +115,7 @@ function TaskDetails() {
         setTask(prev => ({
           ...prev,
           status: statusData.status,
-          progress: statusData.progress,
+          taskProgress: statusData.taskProgress,
           message: statusData.message,
           outputPath: statusData.outputPath,
           completedAt: statusData.completedAt
@@ -230,7 +230,7 @@ function TaskDetails() {
         statusText = '等待处理';
         break;
       case 'processing':
-        progress = task.progress || 50;
+        progress = task.taskProgress || 0;
         statusText = `处理中: ${progress}%`;
         break;
       case 'completed':

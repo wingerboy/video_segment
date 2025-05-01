@@ -95,6 +95,10 @@ const CreateTask = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // 确认对话框
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [dimensionsMatch, setDimensionsMatch] = useState(true);
+
   // 加载背景库和视频库
   useEffect(() => {
     fetchBackgrounds();
@@ -122,12 +126,20 @@ const CreateTask = () => {
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const videoIdParam = searchParams.get('videoId');
+    const backgroundIdParam = searchParams.get('backgroundId');
     const taskIdParam = searchParams.get('taskId');
     
     if (videoIdParam) {
       // 如果URL中有videoId参数，从视频库加载该视频
       loadVideoById(videoIdParam);
-    } else if (taskIdParam) {
+    }
+    
+    if (backgroundIdParam) {
+      // 如果URL中有backgroundId参数，从背景库加载该背景
+      loadBackgroundById(backgroundIdParam);
+    }
+    
+    if (taskIdParam && !videoIdParam && !backgroundIdParam) {
       // 如果URL中有taskId参数，可以基于任务加载视频和背景
       console.log('未实现：基于任务ID加载视频和背景', taskIdParam);
       // TODO: 实现基于任务ID加载视频和背景的逻辑
@@ -147,6 +159,22 @@ const CreateTask = () => {
     } catch (error) {
       console.error('加载视频失败:', error);
       setError('无法加载指定视频，请手动选择');
+    }
+  };
+
+  // 根据背景ID加载背景
+  const loadBackgroundById = async (backgroundId) => {
+    try {
+      const backgrounds = await getUserBackgrounds();
+      const backgroundList = Array.isArray(backgrounds) ? backgrounds : (backgrounds?.backgrounds || []);
+      const background = backgroundList.find(b => b.id === parseInt(backgroundId) || b.id === backgroundId);
+      
+      if (background) {
+        handleSelectFromLibrary(background);
+      }
+    } catch (error) {
+      console.error('加载背景失败:', error);
+      setError('无法加载指定背景，请手动选择');
     }
   };
 
@@ -170,7 +198,7 @@ const CreateTask = () => {
   };
 
   // 处理开始任务按钮
-  const handleStartTask = async () => {
+  const handleStartTask = () => {
     if (!videoId) {
       setError('请选择要处理的视频');
       return;
@@ -181,9 +209,42 @@ const CreateTask = () => {
       return;
     }
 
+    // 检查视频和背景尺寸是否匹配
+    checkDimensions();
+    
+    // 打开确认对话框
+    setShowConfirmDialog(true);
+  };
+
+  // 检查视频和背景尺寸是否匹配
+  const checkDimensions = () => {
+    if (!videoInfo || !backgroundFromLibrary) {
+      return;
+    }
+
+    // 获取视频尺寸
+    const videoDim = `${videoInfo.width}x${videoInfo.height}`;
+    
+    // 获取背景尺寸
+    const backgroundDim = backgroundFromLibrary.backgroundDim;
+
+    // 检查尺寸是否匹配
+    const match = videoDim === backgroundDim;
+    setDimensionsMatch(match);
+    
+    console.log('尺寸比较:', { 
+      视频尺寸: videoDim, 
+      背景尺寸: backgroundDim, 
+      匹配: match 
+    });
+  };
+
+  // 确认并创建任务
+  const confirmAndCreateTask = async () => {
     try {
       setLoading(true);
       setError('');
+      setShowConfirmDialog(false);
       
       console.log('开始创建任务，视频ID:', videoId, '背景ID:', backgroundFromLibrary.id, '模型:', selectedModel);
       
@@ -240,7 +301,10 @@ const CreateTask = () => {
     try {
       setVideosLoading(true);
       const data = await getAllVideos();
-      setVideos(Array.isArray(data) ? data : (data?.videos || []));
+      const allVideos = Array.isArray(data) ? data : (data?.videos || []);
+      // 过滤掉已删除的视频(状态不是exists的视频)
+      const availableVideos = allVideos.filter(video => video.oriVideoStatus === 'exists');
+      setVideos(availableVideos);
     } catch (error) {
       console.error('获取视频库失败:', error);
     } finally {
@@ -400,6 +464,16 @@ const CreateTask = () => {
                       sx={{ height: 300, objectFit: 'contain' }}
                     />
                   </Card>
+                  {backgroundFromLibrary && (
+                    <Box sx={{ mt: 1, textAlign: 'center' }}>
+                      <Typography variant="body1" fontWeight="medium">
+                        {backgroundFromLibrary.backgroundName || backgroundFromLibrary.name || `背景 ${backgroundFromLibrary.id}`}
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        {backgroundFromLibrary.backgroundDim && `分辨率: ${backgroundFromLibrary.backgroundDim}`}
+                      </Typography>
+                    </Box>
+                  )}
                 </Box>
               ) : (
                 <Alert severity="info" sx={{ mb: 3 }}>
@@ -504,6 +578,11 @@ const CreateTask = () => {
                         <Typography variant="body2" noWrap>
                           {background.backgroundName || background.name || `背景 ${background.id}`}
                         </Typography>
+                        {background.backgroundDim && (
+                          <Typography variant="caption" color="textSecondary" display="block">
+                            分辨率: {background.backgroundDim}
+                          </Typography>
+                        )}
                       </CardContent>
                     </Card>
                   </Grid>
@@ -574,6 +653,98 @@ const CreateTask = () => {
             </Grid>
           )}
         </DialogContent>
+      </Dialog>
+
+      {/* 任务确认对话框 */}
+      <Dialog
+        open={showConfirmDialog}
+        onClose={() => setShowConfirmDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>确认创建任务</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h6" gutterBottom>任务信息确认</Typography>
+            
+            <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>视频信息</Typography>
+              {videoInfo && (
+                <Box>
+                  <Typography variant="body2">名称: {videoInfo.name}</Typography>
+                  <Typography variant="body2">
+                    分辨率: <span style={{ fontWeight: !dimensionsMatch ? 'bold' : 'normal', color: !dimensionsMatch ? 'red' : 'inherit' }}>
+                      {videoInfo.width}x{videoInfo.height}
+                    </span>
+                  </Typography>
+                  <Typography variant="body2">时长: {videoInfo.duration}秒</Typography>
+                  <Typography variant="body2">大小: {videoInfo.size} MB</Typography>
+                </Box>
+              )}
+            </Paper>
+            
+            <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>背景信息</Typography>
+              {backgroundFromLibrary && (
+                <Box>
+                  <Typography variant="body2">
+                    名称: {backgroundFromLibrary.backgroundName || backgroundFromLibrary.name || `背景 ${backgroundFromLibrary.id}`}
+                  </Typography>
+                  <Typography variant="body2">
+                    分辨率: <span style={{ fontWeight: !dimensionsMatch ? 'bold' : 'normal', color: !dimensionsMatch ? 'red' : 'inherit' }}>
+                      {backgroundFromLibrary.backgroundDim}
+                    </span>
+                  </Typography>
+                </Box>
+              )}
+            </Paper>
+            
+            <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>模型信息</Typography>
+              <Typography variant="body2">
+                {segmentationModels.find(m => m.id === selectedModel)?.name}
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                {segmentationModels.find(m => m.id === selectedModel)?.description}
+              </Typography>
+            </Paper>
+            
+            {!dimensionsMatch && (
+              <Alert severity="warning" sx={{ mt: 2 }}>
+                <Typography variant="body2" fontWeight="bold">
+                  警告：视频与背景图片分辨率不匹配！
+                </Typography>
+                <Typography variant="body2">
+                  这可能导致处理结果不理想。建议使用相同分辨率的背景图片以获得最佳效果。
+                </Typography>
+                <Typography variant="body2">
+                  如果您确定要继续，请点击下方"确认创建"按钮。
+                </Typography>
+              </Alert>
+            )}
+            
+            {/* 未来可以在这里添加扣费预估 */}
+            {/*
+            <Paper variant="outlined" sx={{ p: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>费用预估</Typography>
+              <Typography variant="body2">
+                预计费用: ¥XX.XX
+              </Typography>
+            </Paper>
+            */}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowConfirmDialog(false)}>取消</Button>
+          <Button 
+            variant="contained" 
+            color="primary"
+            onClick={confirmAndCreateTask}
+            disabled={loading}
+          >
+            确认创建
+          </Button>
+        </DialogActions>
       </Dialog>
     </Container>
   );

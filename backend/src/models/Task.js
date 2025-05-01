@@ -61,6 +61,12 @@ const Task = sequelize.define('Task', {
     allowNull: false,
     comment: '任务状态：等待中、正在执行、处理完成、执行失败'
   },
+  taskProgress: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    allowNull: false,
+    comment: '任务进度'
+  },
   taskRespose: {
     type: DataTypes.STRING,
     allowNull: true,

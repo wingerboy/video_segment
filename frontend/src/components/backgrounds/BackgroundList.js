@@ -132,11 +132,13 @@ const BackgroundList = () => {
   
   // 应用筛选和排序
   const applyFiltersAndSort = (items, search, sort) => {
+    // 首先过滤出可用的背景
+    let filtered = items.filter(item => item.backgroundStatus === 'exists' || item.status === 'exists' || !item.backgroundStatus);
+    
     // 筛选
-    let filtered = items;
     if (search.trim()) {
       const searchLower = search.toLowerCase().trim();
-      filtered = items.filter(item => 
+      filtered = filtered.filter(item => 
         (item.name && item.name.toLowerCase().includes(searchLower)) || 
         (item.description && item.description.toLowerCase().includes(searchLower))
       );
@@ -335,7 +337,7 @@ const BackgroundList = () => {
   
   // 导航到背景详情页面
   const handleViewBackground = (id) => {
-    navigate(`/dashboard#backgrounds/${id}`);
+    navigate(`/backgrounds/${id}`);
   };
   
   // 计算当前页显示的背景
@@ -571,7 +573,7 @@ const BackgroundList = () => {
                     {/* 背景图片 */}
                     <CardMedia
                       component="img"
-                      image={getFullUrl(background.backgroundPath || background.path || background.url || '')}
+                      image={getFullUrl(background.backgroundUrlPath || background.backgroundPath || background.path || background.url || '')}
                       alt={(background.backgroundName || background.name) || '背景图片'}
                       sx={{ 
                         height: 180, 
@@ -591,13 +593,23 @@ const BackgroundList = () => {
                         {background.backgroundName || background.name || '未命名背景'}
                       </Typography>
                       
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          使用次数: {background.backgroundUsageCnt || background.usageCount || 0}
+                      <Box sx={{ mt: 1 }}>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          <strong>创建时间:</strong> {new Date(background.createdAt).toLocaleDateString()}
+                        </Typography>
+                        
+                        {background.backgroundDim && (
+                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                            <strong>尺寸:</strong> {background.backgroundDim}
+                          </Typography>
+                        )}
+                        
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          <strong>使用次数:</strong> {background.backgroundUsageCnt || background.usageCount || 0}
                         </Typography>
                         
                         <Typography variant="body2" color="text.secondary">
-                          {new Date(background.createdAt).toLocaleDateString()}
+                          <strong>状态:</strong> {background.backgroundStatus === 'exists' ? '可用' : background.backgroundStatus || '未知'}
                         </Typography>
                       </Box>
                     </CardContent>

@@ -37,7 +37,9 @@ export const getFullUrl = (path) => {
     return path;
   }
   
-  // 简化路径处理 - 只关注虚拟路径部分
+  // 确定使用哪种路径类型
+  // 如果路径看起来像一个URL路径（包含backgrounds/但不包含完整的文件系统路径）
+  // 则直接使用，否则尝试提取关键部分
   let cleanPath = path;
   
   // 确保路径以/开头
@@ -45,16 +47,18 @@ export const getFullUrl = (path) => {
     cleanPath = '/' + cleanPath;
   }
   
-  // 处理绝对路径 - 如果包含多级目录路径，只保留关键部分
-  const pathParts = cleanPath.split('/');
-  // 尝试找到虚拟路径的关键部分（backgrounds/文件名）
-  const bgIndex = pathParts.findIndex(part => part === 'backgrounds' || part === 'background');
-  
-  if (bgIndex !== -1 && pathParts.length > bgIndex + 1) {
-    // 如果找到 "backgrounds" 或 "background" 部分，只保留这样的关键部分
-    const oldPath = cleanPath;
-    cleanPath = '/' + (pathParts[bgIndex] === 'background' ? 'backgrounds' : pathParts[bgIndex]) + '/' + pathParts[bgIndex + 1];
-    console.log(`路径标准化: ${oldPath} -> ${cleanPath}`);
+  // 如果是绝对路径（包含系统路径如/Users/或/home/等），
+  // 尝试提取backgrounds/部分作为URL路径
+  if (cleanPath.includes('/Users/') || cleanPath.includes('/home/')) {
+    const pathParts = cleanPath.split('/');
+    const bgIndex = pathParts.findIndex(part => part === 'backgrounds' || part === 'background');
+    
+    if (bgIndex !== -1 && pathParts.length > bgIndex + 1) {
+      // 提取backgrounds/filename.jpg这样的关键部分
+      cleanPath = '/' + (pathParts[bgIndex] === 'background' ? 'backgrounds' : pathParts[bgIndex]) + '/' + pathParts[bgIndex + 1];
+    } else {
+      console.warn('无法从路径中提取URL部分:', path);
+    }
   }
   
   console.log('背景图片路径处理:');
@@ -107,14 +111,25 @@ export const getUserBackgrounds = async () => {
  */
 export const uploadBackground = async (formData) => {
   try {
+    console.log('开始上传背景...');
     const response = await api.post('/backgrounds/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
+    
+    console.log('背景上传API响应:', response.data);
+    
+    // 确保返回的数据格式正确
+    if (!response.data) {
+      console.error('API响应中没有数据');
+      throw new Error('服务器返回空响应');
+    }
+    
     return response.data;
   } catch (error) {
     console.error('上传背景出错:', error);
+    console.error('错误详情:', error.response?.data || error.message);
     throw error;
   }
 };

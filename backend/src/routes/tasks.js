@@ -17,9 +17,42 @@ const UPLOAD_MASKS_DIR = process.env.UPLOAD_MASKS_DIR || 'uploads/masks';
 // 获取当前用户的所有任务
 router.get('/user', authenticate, async (req, res) => {
   try {
-    const tasks = await Task.findByEmail(req.user.email);
+    // 使用连接查询获取任务以及关联的视频和背景信息
+    const tasks = await Task.findAll({
+      where: { email: req.user.email },
+      order: [['taskStartTime', 'DESC']],
+      include: [
+        {
+          model: Video,
+          as: 'video',
+          attributes: ['id', 'oriVideoName', 'oriVideoDim', 'oriVideoDuration', 'oriVideoSize'],
+          required: false
+        },
+        {
+          model: Background,
+          as: 'background',
+          attributes: ['id', 'backgroundName', 'backgroundDim', 'backgroundSize'],
+          required: false
+        }
+      ]
+    });
     
-    res.status(200).json({ tasks });
+    // 格式化数据以包含更多信息
+    const formattedTasks = tasks.map(task => {
+      const plainTask = task.get({ plain: true });
+      return {
+        ...plainTask,
+        videoName: plainTask.video ? plainTask.video.oriVideoName : null,
+        videoDim: plainTask.video ? plainTask.video.oriVideoDim : null, 
+        videoDuration: plainTask.video ? plainTask.video.oriVideoDuration : null,
+        videoSize: plainTask.video ? plainTask.video.oriVideoSize : null,
+        backgroundName: plainTask.background ? plainTask.background.backgroundName : null,
+        backgroundDim: plainTask.background ? plainTask.background.backgroundDim : null,
+        backgroundSize: plainTask.background ? plainTask.background.backgroundSize : null
+      };
+    });
+    
+    res.status(200).json(formattedTasks);
   } catch (error) {
     console.error('获取任务列表失败:', error);
     res.status(500).json({ message: '获取任务列表失败', error: error.message });

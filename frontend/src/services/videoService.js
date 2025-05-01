@@ -31,7 +31,9 @@ export const getFullUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
   
-  // 简化路径处理 - 只关注虚拟路径部分
+  // 确定使用哪种路径类型
+  // 如果路径看起来像一个URL路径（包含videos/但不包含完整的文件系统路径）
+  // 则直接使用，否则尝试提取关键部分
   let cleanPath = path;
   
   // 确保路径以/开头
@@ -39,14 +41,18 @@ export const getFullUrl = (path) => {
     cleanPath = '/' + cleanPath;
   }
   
-  // 处理绝对路径 - 如果包含多级目录路径，只保留关键部分
-  const pathParts = cleanPath.split('/');
-  // 尝试找到虚拟路径的关键部分（videos/文件名）
-  const videosIndex = pathParts.findIndex(part => part === 'videos');
-  
-  if (videosIndex !== -1 && pathParts.length > videosIndex + 1) {
-    // 如果找到 "videos" 部分，只保留 "/videos/filename.mp4" 这样的关键部分
-    cleanPath = '/' + pathParts.slice(videosIndex).join('/');
+  // 如果是绝对路径（包含系统路径如/Users/或/home/等），
+  // 尝试提取videos/部分作为URL路径
+  if (cleanPath.includes('/Users/') || cleanPath.includes('/home/')) {
+    const pathParts = cleanPath.split('/');
+    const videosIndex = pathParts.findIndex(part => part === 'videos');
+    
+    if (videosIndex !== -1 && pathParts.length > videosIndex + 1) {
+      // 提取videos/filename.mp4这样的关键部分
+      cleanPath = '/' + pathParts.slice(videosIndex).join('/');
+    } else {
+      console.warn('无法从路径中提取URL部分:', path);
+    }
   }
   
   console.log('原始路径:', path);

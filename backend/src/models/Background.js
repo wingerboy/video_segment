@@ -18,7 +18,12 @@ const Background = sequelize.define('Background', {
   backgroundPath: {
     type: DataTypes.STRING,
     allowNull: false,
-    comment: '背景路径'
+    comment: '背景绝对路径'
+  },
+  backgroundUrlPath: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    comment: '背景URL路径，用于前端访问'
   },
   backgroundMd5: {
     type: DataTypes.STRING,
@@ -49,6 +54,22 @@ const Background = sequelize.define('Background', {
     type: DataTypes.STRING,
     allowNull: false,
     comment: '背景名称'
+  },
+  backgroundFormat: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: '图片格式，例如 "jpeg", "png", "webp"等'
+  },
+  backgroundHasAlpha: {
+    type: DataTypes.BOOLEAN,
+    allowNull: true,
+    defaultValue: false,
+    comment: '图片是否包含透明通道'
+  },
+  backgroundExtra: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: '其他图片元数据信息，JSON格式'
   },
   createdAt: {
     type: DataTypes.DATE,

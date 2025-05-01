@@ -18,7 +18,12 @@ const Video = sequelize.define('Video', {
   oriVideoPath: {
     type: DataTypes.STRING,
     allowNull: false,
-    comment: '原始视频路径'
+    comment: '原始视频绝对路径'
+  },
+  oriVideoUrlPath: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    comment: '原始视频URL路径，用于前端访问'
   },
   oriVideoMd5: {
     type: DataTypes.STRING,

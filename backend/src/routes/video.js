@@ -191,7 +191,8 @@ router.post('/upload', authenticate, upload.single('video'), async (req, res) =>
       email: req.user.email,
       oriVideoName: videoName,
       oriVideoMd5: md5Hash,
-      oriVideoPath: virtualPath, // 存储虚拟路径，用于URL访问
+      oriVideoPath: filePath, // 存储真实的绝对路径
+      oriVideoUrlPath: virtualPath, // 存储虚拟路径，用于URL访问
       oriVideoSize: Math.ceil(req.file.size / (1024 * 1024)), // 转换为MB并向上取整
       oriVideoDim: videoInfo.dimensions,
       oriVideoFrameCnt: videoInfo.frameCount,
@@ -207,7 +208,8 @@ router.post('/upload', authenticate, upload.single('video'), async (req, res) =>
       video: {
         id: video.id,
         oriVideoName: video.oriVideoName,
-        oriVideoPath: video.oriVideoPath, // 返回虚拟路径，前端据此构建完整URL
+        oriVideoPath: video.oriVideoPath, // 返回绝对路径
+        oriVideoUrlPath: video.oriVideoUrlPath, // 返回URL路径
         oriVideoSize: video.oriVideoSize,
         oriVideoDim: video.oriVideoDim,
         oriVideoFrameCnt: video.oriVideoFrameCnt,
@@ -239,7 +241,8 @@ router.get('/user', authenticate, async (req, res) => {
       videos: videos.map(video => ({
         id: video.id,
         oriVideoMd5: video.oriVideoMd5,
-        oriVideoPath: video.oriVideoPath,
+        oriVideoPath: video.oriVideoPath, // 返回绝对路径
+        oriVideoUrlPath: video.oriVideoUrlPath, // 返回URL路径
         oriVideoSize: video.oriVideoSize,
         oriVideoDim: video.oriVideoDim,
         oriVideoFrameCnt: video.oriVideoFrameCnt,
@@ -292,7 +295,8 @@ router.get('/user/:id', authenticate, async (req, res) => {
       video: {
         id: video.id,
         orilVideoMd5: video.orilVideoMd5,
-        oriVideoPath: video.oriVideoPath,
+        oriVideoPath: video.oriVideoPath, // 返回绝对路径
+        oriVideoUrlPath: video.oriVideoUrlPath, // 返回URL路径
         oriVideoSize: video.oriVideoSize,
         oriVideoDim: video.oriVideoDim,
         oriVideoFrameCnt: video.oriVideoFrameCnt,
@@ -345,19 +349,6 @@ router.delete('/del/:id', authenticate, async (req, res) => {
     }
     await video.save();
     
-    // 如果需要物理删除文件
-    // const filesToDelete = [
-    //   video.oriVideoPath, 
-    //   video.foreVideoPath
-    // ].filter(Boolean);
-    // 
-    // filesToDelete.forEach(filePath => {
-    //   const fullPath = path.join(__dirname, '../../', filePath);
-    //   if (fs.existsSync(fullPath)) {
-    //     fs.unlinkSync(fullPath);
-    //   }
-    // });
-    
     res.status(200).json({ message: 'Video deleted successfully' });
   } catch (error) {
     console.error('Delete video error:', error);
@@ -408,7 +399,8 @@ router.post('/segment/:id', authenticate, async (req, res) => {
       message: '视频分割开始处理',
       videoId: video.id,
       status: 'processing',
-      previewUrl: video.oriVideoPath
+      previewUrl: video.oriVideoUrlPath,
+      oriVideoPath: video.oriVideoPath // 返回绝对路径，可能用于后续处理
     });
   } catch (error) {
     console.error('视频分割失败:', error);
@@ -432,7 +424,8 @@ router.get('/check/:md5Hash', authenticate, async (req, res) => {
         exists: true,
         video: {
           id: existingVideo.id,
-          oriVideoPath: existingVideo.oriVideoPath,
+          oriVideoPath: existingVideo.oriVideoPath, // 返回绝对路径
+          oriVideoUrlPath: existingVideo.oriVideoUrlPath, // 返回URL路径
           oriVideoSize: existingVideo.oriVideoSize,
           oriVideoDim: existingVideo.oriVideoDim,
           oriVideoStatus: existingVideo.oriVideoStatus
