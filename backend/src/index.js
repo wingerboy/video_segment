@@ -6,6 +6,7 @@ const videoRoutes = require('./routes/video');
 const backgroundRoutes = require('./routes/backgrounds');
 const taskRoutes = require('./routes/tasks');
 const accountRoutes = require('./routes/account');
+const adminRoutes = require('./routes/admin');
 const path = require('path');
 const taskScheduler = require('./services/taskScheduler');
 const config = require('./config');
@@ -84,6 +85,7 @@ app.use('/api/videos', videoRoutes);
 app.use('/api/backgrounds', backgroundRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/account', accountRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Default route
 app.get('/', (req, res) => {

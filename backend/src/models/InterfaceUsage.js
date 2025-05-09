@@ -1,4 +1,5 @@
 const { DataTypes } = require('sequelize');
+const { Op } = require('sequelize');
 const sequelize = require('./db');
 
 // 定义接口使用记录
@@ -186,11 +187,11 @@ InterfaceUsage.checkOfflineInterfaces = async function(heartbeatTimeout = 15) {
   // 查找所有最后心跳时间早于超时时间或没有心跳记录的非离线接口
   const interfaces = await this.findAll({
     where: {
-      [sequelize.Op.or]: [
-        { lastHeartbeat: { [sequelize.Op.lt]: timeoutDate } },
+      [Op.or]: [
+        { lastHeartbeat: { [Op.lt]: timeoutDate } },
         { lastHeartbeat: null }
       ],
-      status: { [sequelize.Op.ne]: 'offline' }
+      status: { [Op.ne]: 'offline' }
     }
   });
   

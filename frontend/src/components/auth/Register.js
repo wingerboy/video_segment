@@ -38,7 +38,11 @@ const Register = () => {
   const handleSubmit = async (values, { setSubmitting, setStatus }) => {
     try {
       setLoading(true);
-      await register(values.username, values.email, values.password);
+      await register({
+        username: values.username,
+        email: values.email,
+        password: values.password
+      });
       navigate('/');
     } catch (error) {
       setStatus({ error: error.response?.data?.message || '注册失败' });

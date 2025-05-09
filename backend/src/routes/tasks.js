@@ -146,24 +146,7 @@ router.post('/create', authenticate, async (req, res) => {
       // 使用找到的模型信息
       modelNameToUse = modelInfo.modelName;
       modelAliasToUse = modelInfo.modelAlias;
-      // 增加使用次数
-      await ModelUsage.incrementUsage(modelNameToUse);
-    } else {
-      // 如果找不到匹配的模型，尝试获取默认模型
-      const defaultModel = await ModelUsage.findOne({
-        order: [['modelUsageCnt', 'DESC']] // 获取使用最多的模型作为默认
-      });
-      
-      if (defaultModel) {
-        modelNameToUse = defaultModel.modelName;
-        modelAliasToUse = defaultModel.modelAlias;
-        // 增加使用次数
-        await ModelUsage.incrementUsage(modelNameToUse);
-      } else {
-        // 如果仍找不到，返回错误
-        return res.status(400).json({ message: '无法找到可用的处理模型' });
-      }
-    }
+    } 
     
     console.log('创建任务使用模型:', { modelNameToUse, modelAliasToUse, 前端传入: { modelName, modelAlias } });
     
@@ -172,10 +155,10 @@ router.post('/create', authenticate, async (req, res) => {
       email: req.user.email,
       interfaceAddress: '',
       oriVideoId: videoId,
-      backgroundId: backgroundId || 0,
+      backgroundId: backgroundId,
       oriVideoPath: video.oriVideoPath,
       foreVideoPath: '',
-      backgroundPath: background ? background.backgroundPath : '',
+      backgroundPath: background.backgroundPath,
       outputVideoPath: '',
       taskStatus: 'waiting',
       modelName: modelNameToUse,

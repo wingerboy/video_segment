@@ -11,11 +11,19 @@ const sequelize = new Sequelize(
     port: config.DB_CONFIG.port,
     dialect: config.DB_CONFIG.dialect,
     logging: config.DB_CONFIG.logging,
+    timezone: '+08:00', // 设置为北京时间 (UTC+8)
     dialectOptions: {
       // 您可能需要其他选项，如SSL
       // ssl: {
       //   rejectUnauthorized: true,
-      // }
+      // },
+      dateStrings: true,
+      typeCast: function (field, next) {
+        if (field.type === 'DATETIME' || field.type === 'TIMESTAMP') {
+          return field.string();
+        }
+        return next();
+      }
     },
     pool: {
       max: 5,

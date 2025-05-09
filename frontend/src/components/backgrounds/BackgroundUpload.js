@@ -241,9 +241,12 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
   
   // 上传背景图片
   const handleUpload = async () => {
-    // 表单验证
+    setFormError('');
+    setUploadError('');
+    
+    // 表单校验
     if (!selectedFile) {
-      setFormError('请选择一个文件上传');
+      setFormError('请选择背景图片');
       return;
     }
     
@@ -252,29 +255,9 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
       return;
     }
     
-    // 检查是否有文件错误（例如重复背景）
-    if (fileError) {
-      setSnackbar({
-        open: true,
-        message: fileError,
-        severity: 'error'
-      });
-      return;
-    }
-    
-    setFormError('');
-    setUploadError('');
     setIsUploading(true);
-    setUploadProgress(0);
     
     try {
-      // 准备上传数据
-      const formData = new FormData();
-      formData.append('background', selectedFile); // 确保字段名与后端匹配
-      formData.append('name', backgroundName.trim());
-      formData.append('description', backgroundDescription.trim());
-      formData.append('md5Hash', fileHash);
-      
       // 模拟上传进度
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
@@ -283,8 +266,12 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
         });
       }, 200);
       
-      // 执行上传
-      const response = await uploadBackground(formData);
+      // 直接传递文件、名称和进度回调给 uploadBackground 函数
+      const response = await uploadBackground(
+        selectedFile, 
+        backgroundName.trim(),
+        (progress) => setUploadProgress(progress)
+      );
       
       clearInterval(progressInterval);
       setUploadProgress(100);

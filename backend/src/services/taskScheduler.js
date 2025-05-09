@@ -10,7 +10,6 @@ class TaskScheduler {
   constructor() {
     // 使用配置中心的设置
     this.POLL_INTERVAL = config.SCHEDULER_INTERVAL;
-    this.HEARTBEAT_TIMEOUT = config.HEARTBEAT_TIMEOUT;
     this.running = false;
     this.timeout = null;
   }
@@ -54,7 +53,7 @@ class TaskScheduler {
       console.log('开始任务调度轮询...');
       
       // 1. 检查接口心跳状态，将心跳超时的接口标记为离线
-      const offlineCount = await InterfaceUsage.checkOfflineInterfaces(this.HEARTBEAT_TIMEOUT);
+      const offlineCount = await InterfaceUsage.checkOfflineInterfaces();
       if (offlineCount > 0) {
         console.log(`检测到 ${offlineCount} 个接口心跳超时，已标记为离线`);
       }
@@ -112,7 +111,7 @@ class TaskScheduler {
       
       // 3. 调用接口服务
       const response = await axios.post(`${idleInterface.interfaceAddress}/process`, taskData, {
-        timeout: 10000 // 10秒超时
+        timeout: 100000000 // 100000秒超时
       });
       
       if (response.data && response.data.success) {

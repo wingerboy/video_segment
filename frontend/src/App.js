@@ -25,11 +25,16 @@ import Dashboard from './pages/Dashboard';
 import CreateTask from './pages/CreateTask';
 import TaskList from './components/tasks/TaskList';
 import TaskDetails from './components/tasks/TaskDetails';
+import UserManagement from './pages/UserManagement';
+import AIServiceManagement from './pages/AIServiceManagement';
 
 // 背景组件
 import BackgroundList from './components/backgrounds/BackgroundList';
 import BackgroundDetail from './components/backgrounds/BackgroundDetail';
 import BackgroundUpload from './components/backgrounds/BackgroundUpload';
+
+// 路由组件
+import PrivateRoute from './routes/PrivateRoute';
 
 // Create theme
 const theme = createTheme({
@@ -92,12 +97,6 @@ const authenticatedRoutes = [
   { path: '*', element: <Navigate to="/dashboard" replace /> }
 ];
 
-// 私有路由组件
-const PrivateRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
-  return token ? children : <Navigate to="/login" />;
-};
-
 // 布局组件
 const Layout = () => {
   return (
@@ -117,17 +116,25 @@ function App() {
       <Router>
         <AuthProvider>
           <Routes>
+            <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/" element={<Home />} />
             
-            <Route element={<PrivateRoute><Layout /></PrivateRoute>}>
-              {/* 由于路由优先级问题，单独列出/segment路由 */}
-              <Route path="/segment" element={<CreateTask />} />
+            {/* 使用Layout包装需要导航栏的路由 */}
+            <Route element={<Layout />}>
+              <Route path="/dashboard" element={<PrivateRoute component={Dashboard} />} />
+              <Route path="/profile" element={<PrivateRoute component={Profile} />} />
+              <Route path="/segment" element={<PrivateRoute component={CreateTask} />} />
+              <Route path="/user-management" element={<PrivateRoute component={UserManagement} isAdmin={true} />} />
+              <Route path="/ai-service-management" element={<PrivateRoute component={AIServiceManagement} isAdmin={true} />} />
               
               {/* 其他认证路由 */}
               {authenticatedRoutes.filter(route => route.path !== '/segment').map((route, index) => (
-                <Route key={index} path={route.path} element={route.element} />
+                <Route 
+                  key={index} 
+                  path={route.path} 
+                  element={<PrivateRoute component={() => route.element} />} 
+                />
               ))}
             </Route>
           </Routes>

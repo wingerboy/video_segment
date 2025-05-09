@@ -132,4 +132,60 @@ router.get('/me', authenticate, async (req, res) => {
   }
 });
 
+// 开发环境下设置当前用户为管理员
+router.post('/dev/set-admin', async (req, res) => {
+  // 仅在开发环境下启用此路由
+  if (process.env.NODE_ENV !== 'development') {
+    return res.status(404).json({ message: '该接口只在开发环境下可用' });
+  }
+
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: '未提供有效的认证令牌' });
+    }
+    
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    
+    // 更新用户角色为管理员
+    const user = await User.findByPk(decoded.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: '用户不存在' });
+    }
+    
+    // 设置为管理员角色
+    user.role = 'admin';
+    await user.save();
+    
+    // 生成新的JWT令牌
+    const newToken = jwt.sign(
+      { 
+        id: user.id, 
+        email: user.email,
+        username: user.username,
+        role: user.role
+      },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
+    
+    return res.json({ 
+      message: '已成功设置为管理员',
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      },
+      token: newToken
+    });
+  } catch (error) {
+    console.error('设置管理员失败:', error);
+    return res.status(500).json({ message: '服务器错误' });
+  }
+});
+
 module.exports = router; 
