@@ -3,21 +3,31 @@
  * 这里集中管理所有的应用配置，避免硬编码散落在各处
  */
 
+// 注意：在React前端中，环境变量必须以REACT_APP_开头才能被注入
+// 为避免与其他应用冲突，使用REACT_APP_VIDEO_FRONTEND_作为前缀
+
+// 添加调试日志，方便定位环境变量问题
+console.log('[config.js] 初始化配置，环境变量:', {
+  NODE_ENV: process.env.NODE_ENV,
+  REACT_APP_VIDEO_FRONTEND_API_BASE_URL: process.env.REACT_APP_VIDEO_FRONTEND_API_BASE_URL,
+  REACT_APP_VIDEO_FRONTEND_NODE_ENV: process.env.REACT_APP_VIDEO_FRONTEND_NODE_ENV
+});
+
 // 环境变量配置
 export const ENV_CONFIG = {
   // 当前环境
-  NODE_ENV: process.env.VIDEO_FRONTEND_NODE_ENV || 'development',
-  IS_PRODUCTION: process.env.VIDEO_FRONTEND_NODE_ENV === 'production',
-  IS_DEVELOPMENT: process.env.VIDEO_FRONTEND_NODE_ENV === 'development',
-  IS_TEST: process.env.VIDEO_FRONTEND_NODE_ENV === 'test',
+  NODE_ENV: process.env.REACT_APP_VIDEO_FRONTEND_NODE_ENV || process.env.NODE_ENV || 'development',
+  IS_PRODUCTION: (process.env.REACT_APP_VIDEO_FRONTEND_NODE_ENV || process.env.NODE_ENV) === 'production',
+  IS_DEVELOPMENT: (process.env.REACT_APP_VIDEO_FRONTEND_NODE_ENV || process.env.NODE_ENV) === 'development',
+  IS_TEST: (process.env.REACT_APP_VIDEO_FRONTEND_NODE_ENV || process.env.NODE_ENV) === 'test',
   
   // API相关
-  API_BASE_URL: process.env.VIDEO_FRONTEND_API_BASE_URL || 'http://localhost:6001',
-  API_URL: process.env.VIDEO_FRONTEND_API_URL || (process.env.VIDEO_FRONTEND_API_BASE_URL ? `${process.env.VIDEO_FRONTEND_API_BASE_URL}/api` : 'http://localhost:6001/api'),
+  API_BASE_URL: process.env.REACT_APP_VIDEO_FRONTEND_API_BASE_URL || 'http://localhost:6001',
+  API_URL: process.env.REACT_APP_VIDEO_FRONTEND_API_URL || (process.env.REACT_APP_VIDEO_FRONTEND_API_BASE_URL ? `${process.env.REACT_APP_VIDEO_FRONTEND_API_BASE_URL}/api` : 'http://localhost:6001/api'),
   
   // 上传限制
-  MAX_VIDEO_SIZE: parseInt(process.env.VIDEO_FRONTEND_MAX_VIDEO_SIZE || '2000'),
-  MAX_BACKGROUND_SIZE: parseInt(process.env.VIDEO_FRONTEND_MAX_BACKGROUND_SIZE || '10'),
+  MAX_VIDEO_SIZE: parseInt(process.env.REACT_APP_VIDEO_FRONTEND_MAX_VIDEO_SIZE || '2000'),
+  MAX_BACKGROUND_SIZE: parseInt(process.env.REACT_APP_VIDEO_FRONTEND_MAX_BACKGROUND_SIZE || '10'),
 };
 
 // API配置

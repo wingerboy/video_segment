@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_URL, AUTH_CONFIG } from '../config';
+import { API_URL, AUTH_CONFIG, ENV_CONFIG } from '../config';
 
 // 创建axios实例
 const api = axios.create({
@@ -7,6 +7,14 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json'
   }
+});
+
+// 添加调试日志
+console.log('API服务配置:', {
+  API_URL,
+  baseURL: API_URL,
+  环境变量BaseURL: ENV_CONFIG.API_BASE_URL,
+  apiURL环境变量: ENV_CONFIG.API_URL
 });
 
 // 请求拦截器添加token

@@ -2,7 +2,6 @@
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
-   "proxy": "http://localhost:6001",
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
@@ -16,6 +15,7 @@
     "crypto-js": "^4.2.0",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.13",
+    "dotenv": "^16.5.0",
     "formik": "^2.4.6",
     "jwt-decode": "^4.0.0",
     "moment": "^2.30.1",
@@ -27,7 +27,8 @@
     "yup": "^1.6.1"
   },
   "scripts": {
-    "start": "VIDEO_FRONTEND_DANGEROUSLY_DISABLE_HOST_CHECK=true VIDEO_FRONTEND_HOST=0.0.0.0 react-scripts start",
+    "start": "REACT_APP_VIDEO_FRONTEND_DANGEROUSLY_DISABLE_HOST_CHECK=true REACT_APP_VIDEO_FRONTEND_HOST=0.0.0.0 react-scripts start",
+    "start:server": "REACT_APP_VIDEO_FRONTEND_API_BASE_URL=https://to74zigu-nx6sqm6b-6001.zjrestapi.gpufree.cn:8443 REACT_APP_VIDEO_FRONTEND_DANGEROUSLY_DISABLE_HOST_CHECK=true REACT_APP_VIDEO_FRONTEND_HOST=0.0.0.0 react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
