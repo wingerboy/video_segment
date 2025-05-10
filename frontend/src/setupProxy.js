@@ -1,7 +1,11 @@
 const { createProxyMiddleware } = require('http-proxy-middleware');
+
+// 获取API基础URL或使用默认值
+const apiBaseUrl = process.env.VIDEO_FRONTEND_API_BASE_URL || 'http://localhost:6001';
+
 module.exports = function(app) {
   app.use('/api', createProxyMiddleware({
-    target: 'http://localhost:6001',
+    target: apiBaseUrl,
     changeOrigin: true,
     pathRewrite: {'^/api': '/api'},
     onProxyReq: (proxyReq) => {

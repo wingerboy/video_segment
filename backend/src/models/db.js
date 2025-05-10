@@ -37,6 +37,12 @@ const sequelize = new Sequelize(
 // 测试数据库连接
 const testConnection = async () => {
   try {
+    console.log('尝试连接数据库:', {
+      host: config.DB_CONFIG.host,
+      port: config.DB_CONFIG.port,
+      database: config.DB_CONFIG.database,
+      user: config.DB_CONFIG.username
+    });
     await sequelize.authenticate();
     console.log('数据库连接成功');
   } catch (error) {

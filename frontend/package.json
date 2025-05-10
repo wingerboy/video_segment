@@ -27,7 +27,7 @@
     "yup": "^1.6.1"
   },
   "scripts": {
-    "start": "DANGEROUSLY_DISABLE_HOST_CHECK=true react-scripts start",
+    "start": "VIDEO_FRONTEND_DANGEROUSLY_DISABLE_HOST_CHECK=true VIDEO_FRONTEND_HOST=0.0.0.0 react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

@@ -6,18 +6,18 @@
 // 环境变量配置
 export const ENV_CONFIG = {
   // 当前环境
-  NODE_ENV: process.env.NODE_ENV || 'development',
-  IS_PRODUCTION: process.env.NODE_ENV === 'production',
-  IS_DEVELOPMENT: process.env.NODE_ENV === 'development',
-  IS_TEST: process.env.NODE_ENV === 'test',
+  NODE_ENV: process.env.VIDEO_FRONTEND_NODE_ENV || 'development',
+  IS_PRODUCTION: process.env.VIDEO_FRONTEND_NODE_ENV === 'production',
+  IS_DEVELOPMENT: process.env.VIDEO_FRONTEND_NODE_ENV === 'development',
+  IS_TEST: process.env.VIDEO_FRONTEND_NODE_ENV === 'test',
   
   // API相关
-  API_BASE_URL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:6001',
-  API_URL: process.env.REACT_APP_API_URL || (process.env.REACT_APP_API_BASE_URL ? `${process.env.REACT_APP_API_BASE_URL}/api` : 'http://localhost:6001/api'),
+  API_BASE_URL: process.env.VIDEO_FRONTEND_API_BASE_URL || 'http://localhost:6001',
+  API_URL: process.env.VIDEO_FRONTEND_API_URL || (process.env.VIDEO_FRONTEND_API_BASE_URL ? `${process.env.VIDEO_FRONTEND_API_BASE_URL}/api` : 'http://localhost:6001/api'),
   
   // 上传限制
-  MAX_VIDEO_SIZE: parseInt(process.env.REACT_APP_MAX_VIDEO_SIZE || '2000'),
-  MAX_BACKGROUND_SIZE: parseInt(process.env.REACT_APP_MAX_BACKGROUND_SIZE || '10'),
+  MAX_VIDEO_SIZE: parseInt(process.env.VIDEO_FRONTEND_MAX_VIDEO_SIZE || '2000'),
+  MAX_BACKGROUND_SIZE: parseInt(process.env.VIDEO_FRONTEND_MAX_BACKGROUND_SIZE || '10'),
 };
 
 // API配置
