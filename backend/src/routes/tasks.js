@@ -366,8 +366,8 @@ router.get('/models', authenticate, async (req, res) => {
 
 // 任务回调接口 - 由接口服务调用更新任务状态
 router.post('/callback', async (req, res) => {
-  const { taskId, Identification, status, progress, message } = req.body;
-  
+  const { Identification, taskId, workerUrl, status, progress, message } = req.body;
+
   console.log('收到任务回调:', req.body);
   
   // 验证必要参数

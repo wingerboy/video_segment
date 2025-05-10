@@ -103,14 +103,16 @@ class TaskScheduler {
       const taskData = {
         taskId: task.id,
         videoPath: task.oriVideoPath,
+        foregroundPath: task.foregroundPath || null,
         backgroundPath: task.backgroundPath || null,
         modelName: task.modelName,
         modelAlias: task.modelAlias,
-        callbackUrl: `${config.API_BASE_URL}/api/tasks/callback`
+        callbackUrl: `${config.API_BASE_URL}/api/tasks/callback`,
+        workerUrl: idleInterface.interfaceAddress
       };
       
       // 3. 调用接口服务
-      const response = await axios.post(`${idleInterface.interfaceAddress}/process`, taskData, {
+      const response = await axios.post(`${idleInterface.interfaceAddress}/api/video/segment`, taskData, {
         timeout: 100000000 // 100000秒超时
       });
       
