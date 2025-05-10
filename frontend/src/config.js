@@ -3,15 +3,31 @@
  * 这里集中管理所有的应用配置，避免硬编码散落在各处
  */
 
+// 环境变量配置
+export const ENV_CONFIG = {
+  // 当前环境
+  NODE_ENV: process.env.NODE_ENV || 'development',
+  IS_PRODUCTION: process.env.NODE_ENV === 'production',
+  IS_DEVELOPMENT: process.env.NODE_ENV === 'development',
+  IS_TEST: process.env.NODE_ENV === 'test',
+  
+  // API相关
+  API_BASE_URL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:6001',
+  API_URL: process.env.REACT_APP_API_URL || (process.env.REACT_APP_API_BASE_URL ? `${process.env.REACT_APP_API_BASE_URL}/api` : 'http://localhost:6001/api'),
+  
+  // 上传限制
+  MAX_VIDEO_SIZE: parseInt(process.env.REACT_APP_MAX_VIDEO_SIZE || '2000'),
+  MAX_BACKGROUND_SIZE: parseInt(process.env.REACT_APP_MAX_BACKGROUND_SIZE || '10'),
+};
+
 // API配置
-export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:6001';
-// 从环境变量获取API URL，默认为localhost:5001
-export const API_URL = process.env.REACT_APP_API_URL || `${API_BASE_URL}/api`;
+export const API_BASE_URL = ENV_CONFIG.API_BASE_URL;
+export const API_URL = ENV_CONFIG.API_URL;
 
 // 上传文件配置
 export const UPLOAD_CONFIG = {
-  MAX_VIDEO_SIZE: parseInt(process.env.REACT_APP_MAX_VIDEO_SIZE || '2000') * 1024 * 1024, // 2000MB
-  MAX_BACKGROUND_SIZE: parseInt(process.env.REACT_APP_MAX_BACKGROUND_SIZE || '10') * 1024 * 1024, // 10MB
+  MAX_VIDEO_SIZE: ENV_CONFIG.MAX_VIDEO_SIZE * 1024 * 1024, // MB转换为字节
+  MAX_BACKGROUND_SIZE: ENV_CONFIG.MAX_BACKGROUND_SIZE * 1024 * 1024, // MB转换为字节
   ALLOWED_VIDEO_TYPES: ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'],
   ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp'],
   VIDEO_FORMAT_SUPPORT_TEXT: 'MP4, WebM, MOV等视频格式',
@@ -50,12 +66,13 @@ export const APP_CONFIG = {
 
 // 开发配置
 export const DEV_CONFIG = {
-  DEBUG_MODE: process.env.NODE_ENV !== 'production',
-  LOG_API_CALLS: process.env.NODE_ENV !== 'production'
+  DEBUG_MODE: ENV_CONFIG.IS_DEVELOPMENT,
+  LOG_API_CALLS: ENV_CONFIG.IS_DEVELOPMENT
 };
 
 // 导出所有配置
 export default {
+  ENV_CONFIG,
   API_BASE_URL,
   API_URL,
   UPLOAD_CONFIG,

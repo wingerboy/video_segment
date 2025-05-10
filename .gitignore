@@ -52,4 +52,4 @@ coverage/
 .next/
 */.next/
 out/
-*/out/ 
+*/out/ frontend/.env.local

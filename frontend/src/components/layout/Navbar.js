@@ -17,7 +17,7 @@ import {
 import { AccountCircle, VideoLibrary } from '@mui/icons-material';
 import { AuthContext } from '../../contexts/AuthContext';
 import axios from 'axios';
-import { API_URL, AUTH_CONFIG } from '../../config';
+import { API_URL, AUTH_CONFIG, ENV_CONFIG } from '../../config';
 
 const Navbar = () => {
   const { currentUser, logout, getCurrentUser } = useContext(AuthContext);
@@ -84,7 +84,7 @@ const Navbar = () => {
   };
 
   // 检查是否为开发环境
-  const isDevelopment = process.env.NODE_ENV === 'development';
+  const isDevelopment = ENV_CONFIG.IS_DEVELOPMENT;
 
   return (
     <>
