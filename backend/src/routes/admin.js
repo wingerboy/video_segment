@@ -570,4 +570,15 @@ router.delete('/models/:modelId', authenticate, isAdmin, async (req, res) => {
   }
 });
 
+router.delete('/admin/interfaces/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await InterfaceUsage.destroy({ where: { id } });
+    return res.status(200).json({ success: true, message: '接口删除成功' });
+  } catch (error) {
+    console.error('删除接口失败:', error);
+    return res.status(500).json({ success: false, message: '删除接口失败', error: error.message });
+  }
+});
+
 module.exports = router; 
