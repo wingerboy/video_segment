@@ -11,9 +11,20 @@ const path = require('path');
 const taskScheduler = require('./services/taskScheduler');
 const config = require('./config');
 const fs = require('fs');
+const logger = require('./utils/logger');
+const requestLogger = require('./middleware/requestLogger');
+const errorHandler = require('./middleware/errorHandler');
 
 // Load environment variables
 dotenv.config();
+
+// 记录应用启动信息
+logger.info('应用启动中...', {
+  environment: process.env.NODE_ENV || 'development',
+  nodeVersion: process.version,
+  platform: process.platform,
+  memory: process.memoryUsage()
+});
 
 // Import database models (will automatically connect and sync the database)
 require('./models');
@@ -28,6 +39,7 @@ const corsOptions = {
     if (!origin || config.CORS_ORIGINS.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
+      logger.warn('CORS请求被拒绝', { origin });
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -48,6 +60,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// 请求日志中间件（在所有路由之前）
+app.use(requestLogger);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -63,7 +78,7 @@ const VIRTUAL_BACKGROUNDS_PATH = config.UPLOAD_BACKGROUNDS_URL_PATH;
 const ensureDir = (dirPath) => {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
-    console.log('创建目录:', dirPath);
+    logger.info(`创建目录: ${dirPath}`);
   }
 };
 
@@ -75,9 +90,10 @@ ensureDir(PHYSICAL_BACKGROUNDS_DIR);
 app.use(`/${VIRTUAL_VIDEOS_PATH}`, express.static(PHYSICAL_VIDEOS_DIR));
 app.use(`/${VIRTUAL_BACKGROUNDS_PATH}`, express.static(PHYSICAL_BACKGROUNDS_DIR));
 
-console.log('==== 静态文件服务配置 ====');
-console.log(`视频虚拟路径 /${VIRTUAL_VIDEOS_PATH} 映射到 ${PHYSICAL_VIDEOS_DIR}`);
-console.log(`背景虚拟路径 /${VIRTUAL_BACKGROUNDS_PATH} 映射到 ${PHYSICAL_BACKGROUNDS_DIR}`);
+logger.info('静态文件服务配置完成', {
+  videoMapping: `/${VIRTUAL_VIDEOS_PATH} => ${PHYSICAL_VIDEOS_DIR}`,
+  backgroundMapping: `/${VIRTUAL_BACKGROUNDS_PATH} => ${PHYSICAL_BACKGROUNDS_DIR}`
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -92,30 +108,42 @@ app.get('/', (req, res) => {
   res.send('Video Segmentation API is running');
 });
 
+// 全局错误处理中间件（在所有路由之后）
+app.use(errorHandler);
+
 // Start server
 app.listen(PORT, async () => {
-  console.log(`服务器已启动: ${config.API_BASE_URL}`);
+  logger.info(`服务器已启动`, {
+    port: PORT,
+    baseUrl: config.API_BASE_URL,
+    environment: process.env.NODE_ENV || 'development',
+    startTime: new Date().toISOString()
+  });
   
   // 启动任务调度器
   try {
     await taskScheduler.start();
-    console.log('任务调度器已启动');
+    logger.info('任务调度器已启动');
   } catch (error) {
-    console.error('启动任务调度器失败:', error);
+    logger.error('启动任务调度器失败:', { error: error.message, stack: error.stack });
   }
 });
 
 // 处理进程退出
 process.on('SIGINT', async () => {
-  console.log('服务器关闭中...');
+  logger.info('服务器关闭中...');
   
   try {
     // 停止任务调度器
     await taskScheduler.stop();
-    console.log('任务调度器已停止');
+    logger.info('任务调度器已停止');
   } catch (error) {
-    console.error('停止任务调度器失败:', error);
+    logger.error('停止任务调度器失败:', { error: error.message, stack: error.stack });
   }
   
-  process.exit(0);
+  // 给日志一点时间完成写入
+  setTimeout(() => {
+    logger.info('服务器已关闭', { shutdownTime: new Date().toISOString() });
+    process.exit(0);
+  }, 1000);
 }); 

@@ -5,6 +5,7 @@ const { Op } = require('sequelize');
 const { authenticate } = require('../middleware/auth');
 const { Task, Video, Background, ModelUsage, InterfaceUsage, sequelize } = require('../models');
 const config = require('../config');
+const logger = require('../utils/logger');
 
 // 加载环境变量
 dotenv.config();
@@ -56,7 +57,7 @@ router.get('/user', authenticate, async (req, res) => {
     
     res.status(200).json(formattedTasks);
   } catch (error) {
-    console.error('获取任务列表失败:', error);
+    logger.error('获取任务列表失败:', { error: error.message, stack: error.stack });
     res.status(500).json({ message: '获取任务列表失败', error: error.message });
   }
 });
@@ -81,7 +82,7 @@ router.get('/user/:id', authenticate, async (req, res) => {
     
     res.status(200).json({ task: taskWithoutModelName });
   } catch (error) {
-    console.error('获取任务详情失败:', error);
+    logger.error('获取任务详情失败:', { error: error.message, stack: error.stack });
     res.status(500).json({ message: '获取任务详情失败', error: error.message });
   }
 });
@@ -148,7 +149,12 @@ router.post('/create', authenticate, async (req, res) => {
       modelAliasToUse = modelInfo.modelAlias;
     } 
     
-    console.log('创建任务使用模型:', { modelNameToUse, modelAliasToUse, 前端传入: { modelName, modelAlias } });
+    logger.info('创建任务使用模型:', { 
+      requestId: req.requestId,
+      modelNameToUse, 
+      modelAliasToUse, 
+      前端传入: { modelName, modelAlias } 
+    });
     
     // 创建任务
     const task = await Task.create({
@@ -187,7 +193,11 @@ router.post('/create', authenticate, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('创建任务失败:', error);
+    logger.error('创建任务失败:', { 
+      requestId: req.requestId,
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({ message: '创建任务失败', error: error.message });
   }
 });
@@ -214,7 +224,11 @@ router.delete('/cancel/:id', authenticate, async (req, res) => {
     
     res.status(200).json({ message: '任务已取消' });
   } catch (error) {
-    console.error('取消任务失败:', error);
+    logger.error('取消任务失败:', { 
+      requestId: req.requestId,
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({ message: '取消任务失败', error: error.message });
   }
 });
@@ -297,7 +311,11 @@ router.get('/status/:id', authenticate, async (req, res) => {
       background: backgroundInfo
     });
   } catch (error) {
-    console.error('获取任务状态失败:', error);
+    logger.error('获取任务状态失败:', { 
+      requestId: req.requestId,
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({ message: '获取任务状态失败', error: error.message });
   }
 });
@@ -323,7 +341,7 @@ router.get('/admin/models', authenticate, async (req, res) => {
     
     res.status(200).json({ modelUsages: filteredUsages });
   } catch (error) {
-    console.error('获取模型使用统计失败:', error);
+    logger.error('获取模型使用统计失败:', { error: error.message, stack: error.stack });
     res.status(500).json({ message: '获取模型使用统计失败', error: error.message });
   }
 });
@@ -342,7 +360,7 @@ router.get('/admin/interfaces', authenticate, async (req, res) => {
     
     res.status(200).json({ interfaceUsages });
   } catch (error) {
-    console.error('获取接口使用统计失败:', error);
+    logger.error('获取接口使用统计失败:', { error: error.message, stack: error.stack });
     res.status(500).json({ message: '获取接口使用统计失败', error: error.message });
   }
 });
@@ -359,7 +377,7 @@ router.get('/models', authenticate, async (req, res) => {
       }))
     });
   } catch (error) {
-    console.error('获取可用模型列表失败:', error);
+    logger.error('获取可用模型列表失败:', { error: error.message, stack: error.stack });
     res.status(500).json({ message: '获取可用模型列表失败', error: error.message });
   }
 });
@@ -368,7 +386,13 @@ router.get('/models', authenticate, async (req, res) => {
 router.post('/callback', async (req, res) => {
   const { Identification, taskId, workerUrl, status, progress, message } = req.body;
 
-  console.log('收到任务回调:', req.body);
+  logger.info('收到任务回调:', { 
+    requestId: req.requestId,
+    taskId, 
+    workerUrl, 
+    status, 
+    progress 
+  });
   
   // 验证必要参数
   if (!taskId || !Identification || !status) {
@@ -421,11 +445,21 @@ router.post('/callback', async (req, res) => {
     
     await task.save();
     
-    console.log(`任务 #${taskId} 状态更新为: ${task.taskStatus}, 进度: ${task.taskProgress}%, 消息: ${message || '无'}`);
+    logger.info(`任务 #${taskId} 状态更新为: ${task.taskStatus}, 进度: ${task.taskProgress}%, 消息: ${message || '无'}`, {
+      requestId: req.requestId,
+      taskId,
+      status: task.taskStatus,
+      progress: task.taskProgress,
+      message: message || '无'
+    });
     
     // 3. 如果任务完成或失败，释放接口资源
     if (shouldReleaseInterface && task.interfaceAddress) {
-      console.log(`释放接口: ${task.interfaceAddress}`);
+      logger.info(`释放接口: ${task.interfaceAddress}`, {
+        requestId: req.requestId,
+        taskId,
+        interfaceAddress: task.interfaceAddress
+      });
       
       // 更新接口使用统计
       if (status.toLowerCase() === 'completed') {
@@ -440,7 +474,12 @@ router.post('/callback', async (req, res) => {
     
     res.status(200).json({ success: true, message: '任务状态已更新' });
   } catch (error) {
-    console.error('更新任务状态失败:', error);
+    logger.error('更新任务状态失败:', { 
+      requestId: req.requestId,
+      taskId,
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({ success: false, message: '更新任务状态失败', error: error.message });
   }
 });
@@ -463,11 +502,19 @@ router.post('/interface/heartbeat', async (req, res) => {
     // 更新接口心跳时间
     await InterfaceUsage.updateHeartbeat(interfaceAddress);
     
-    console.log(`接收到接口心跳: ${interfaceAddress}`);
+    logger.debug(`接收到接口心跳: ${interfaceAddress}`, {
+      requestId: req.requestId,
+      interfaceAddress
+    });
     
     res.status(200).json({ success: true, message: '心跳已更新' });
   } catch (error) {
-    console.error('更新接口心跳失败:', error);
+    logger.error('更新接口心跳失败:', { 
+      requestId: req.requestId,
+      interfaceAddress,
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({ success: false, message: '更新心跳失败', error: error.message });
   }
 });

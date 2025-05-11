@@ -180,4 +180,46 @@ export const deleteModel = async (modelId) => {
     console.error('删除模型失败:', error);
     throw error;
   }
+};
+
+// 任务管理相关API
+export const getAllTasks = async (status) => {
+  try {
+    const url = status ? `/admin/tasks?status=${status}` : '/admin/tasks';
+    const response = await api.get(url);
+    return response.data;
+  } catch (error) {
+    console.error('获取任务列表失败:', error);
+    throw error;
+  }
+};
+
+export const getTaskById = async (taskId) => {
+  try {
+    const response = await api.get(`/admin/tasks/${taskId}`);
+    return response.data;
+  } catch (error) {
+    console.error('获取任务详情失败:', error);
+    throw error;
+  }
+};
+
+export const updateTask = async (taskId, taskData) => {
+  try {
+    const response = await api.put(`/admin/tasks/${taskId}`, taskData);
+    return response.data;
+  } catch (error) {
+    console.error('更新任务失败:', error);
+    throw error;
+  }
+};
+
+export const deleteTask = async (taskId) => {
+  try {
+    const response = await api.delete(`/admin/tasks/${taskId}`);
+    return response.data;
+  } catch (error) {
+    console.error('删除任务失败:', error);
+    throw error;
+  }
 }; 

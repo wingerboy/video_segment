@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { Op } = require('sequelize');
 const sequelize = require('./db');
+const logger = require('../utils/logger');
 
 // 定义接口使用记录
 const InterfaceUsage = sequelize.define('InterfaceUsage', {
@@ -213,14 +214,19 @@ InterfaceUsage.checkOfflineInterfaces = async function(heartbeatTimeout = 15) {
         task.taskStatus = 'failed';
         task.taskRespose = 'AI服务离线（心跳）';
         await task.save();
-        console.log(`任务 #${task.id} 已标记为失败：AI服务离线（心跳）`);
+        logger.warn(`任务 #${task.id} 已标记为失败：AI服务离线（心跳）`, { 
+          taskId: task.id, 
+          interfaceAddress: interfaceRecord.interfaceAddress 
+        });
       }
     }
 
     // 更新接口状态为离线
     interfaceRecord.status = 'offline';
     await interfaceRecord.save();
-    console.log(`接口 ${interfaceRecord.interfaceAddress} 已标记为离线：心跳超时`);
+    logger.info(`接口 ${interfaceRecord.interfaceAddress} 已标记为离线：心跳超时`, {
+      interfaceAddress: interfaceRecord.interfaceAddress
+    });
   }
   
   return interfaces.length;

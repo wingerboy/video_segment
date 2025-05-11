@@ -1,6 +1,7 @@
 const { Task, InterfaceUsage } = require('../models');
 const axios = require('axios');
 const config = require('../config');
+const logger = require('../utils/logger');
 
 /**
  * 任务调度器
@@ -21,7 +22,7 @@ class TaskScheduler {
     if (this.running) return;
     
     this.running = true;
-    console.log('任务调度器已启动');
+    logger.info('任务调度器已启动');
     
     // 立即开始第一次调度
     this.scheduleTasks();
@@ -32,7 +33,7 @@ class TaskScheduler {
    */
   async stop() {
     this.running = false;
-    console.log('任务调度器已停止');
+    logger.info('任务调度器已停止');
     
     if (this.timeout) {
       clearTimeout(this.timeout);
@@ -50,12 +51,12 @@ class TaskScheduler {
     try {
       if (!this.running) return;
       
-      console.log('开始任务调度轮询...');
+      logger.info('开始任务调度轮询...');
       
       // 1. 检查接口心跳状态，将心跳超时的接口标记为离线
       const offlineCount = await InterfaceUsage.checkOfflineInterfaces();
       if (offlineCount > 0) {
-        console.log(`检测到 ${offlineCount} 个接口心跳超时，已标记为离线`);
+        logger.info(`检测到 ${offlineCount} 个接口心跳超时，已标记为离线`);
       }
       
       // 2. 查找等待中的任务
@@ -66,17 +67,17 @@ class TaskScheduler {
       });
       
       if (waitingTasks.length > 0) {
-        console.log(`找到 ${waitingTasks.length} 个等待处理的任务`);
+        logger.info(`找到 ${waitingTasks.length} 个等待处理的任务`);
         
         // 3. 给每个任务分配接口
         for (const task of waitingTasks) {
           await this.assignTaskToInterface(task);
         }
       } else {
-        console.log('没有等待中的任务');
+        logger.debug('没有等待中的任务');
       }
     } catch (error) {
-      console.error('任务调度出错:', error);
+      logger.error('任务调度出错:', { error: error.message, stack: error.stack });
     } finally {
       // 设置下一次轮询
       this.timeout = setTimeout(() => this.scheduleTasks(), this.POLL_INTERVAL);
@@ -93,11 +94,14 @@ class TaskScheduler {
       const idleInterface = await InterfaceUsage.findIdle();
       
       if (!idleInterface) {
-        console.log(`任务 #${task.id} 没有可用的接口，稍后再试`);
+        logger.warn(`任务 #${task.id} 没有可用的接口，稍后再试`, { taskId: task.id });
         return;
       }
       
-      console.log(`为任务 #${task.id} 分配接口: ${idleInterface.interfaceAddress}`);
+      logger.info(`为任务 #${task.id} 分配接口: ${idleInterface.interfaceAddress}`, { 
+        taskId: task.id, 
+        interfaceAddress: idleInterface.interfaceAddress 
+      });
       
       // 2. 准备任务数据
       const taskData = {
@@ -111,7 +115,11 @@ class TaskScheduler {
         workerUrl: idleInterface.interfaceAddress
       };
       
-      console.log(`发送任务数据到接口: ${JSON.stringify(taskData, null, 2)}`);
+      logger.debug(`发送任务数据到接口:`, { 
+        taskId: task.id, 
+        interfaceAddress: idleInterface.interfaceAddress,
+        taskData 
+      });
       
       // 3. 调用接口服务
       const response = await axios.post(`${idleInterface.interfaceAddress}/api/video/segment`, taskData, {
@@ -122,11 +130,18 @@ class TaskScheduler {
       });
       
       // 打印接口返回的响应信息
-      console.log(`接口返回响应:`, response.data);
+      logger.debug(`接口返回响应:`, { 
+        taskId: task.id, 
+        interfaceAddress: idleInterface.interfaceAddress, 
+        response: response.data 
+      });
       
       // AI server返回格式： { taskId, status: "accepted", message, maskVideoPath }
       if (response.data && response.data.status === "accepted") {
-        console.log(`任务 #${task.id} 已成功分配到接口`);
+        logger.info(`任务 #${task.id} 已成功分配到接口`, { 
+          taskId: task.id, 
+          interfaceAddress: idleInterface.interfaceAddress 
+        });
         
         // 4. 更新接口状态为busy
         await InterfaceUsage.setInterfaceBusy(idleInterface.interfaceAddress, task.id);
@@ -137,18 +152,29 @@ class TaskScheduler {
         task.interfaceAddress = idleInterface.interfaceAddress;
         await task.save();
         
-        console.log(`任务 #${task.id} 状态已更新为processing`);
+        logger.info(`任务 #${task.id} 状态已更新为processing`, { 
+          taskId: task.id, 
+          interfaceAddress: idleInterface.interfaceAddress 
+        });
       } else {
         throw new Error(response.data?.message || '接口服务拒绝任务');
       }
     } catch (error) {
-      console.error(`为任务 #${task.id} 分配接口失败:`, error.message);
+      logger.error(`为任务 #${task.id} 分配接口失败:`, { 
+        taskId: task.id, 
+        error: error.message, 
+        stack: error.stack 
+      });
       
       // 如果是因为接口连接失败，标记接口为离线
       if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.code === 'ENOTFOUND') {
         const interfaceAddress = task.interfaceAddress || error.config?.url?.split('/')[0];
         if (interfaceAddress) {
-          console.log(`接口 ${interfaceAddress} 连接失败，标记为离线`);
+          logger.warn(`接口 ${interfaceAddress} 连接失败，标记为离线`, { 
+            taskId: task.id, 
+            interfaceAddress, 
+            errorCode: error.code 
+          });
           await InterfaceUsage.setInterfaceOffline(interfaceAddress);
         }
       }

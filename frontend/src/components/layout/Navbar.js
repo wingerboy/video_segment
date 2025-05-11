@@ -157,6 +157,9 @@ const Navbar = () => {
                       </MenuItem>,
                       <MenuItem key="ai-service-management" component={Link} to="/ai-service-management" onClick={handleClose}>
                         AI服务管理
+                      </MenuItem>,
+                      <MenuItem key="task-management" component={Link} to="/task-management" onClick={handleClose}>
+                        任务管理
                       </MenuItem>
                     ]
                   )}

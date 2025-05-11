@@ -1,5 +1,6 @@
 const { Sequelize } = require('sequelize');
 const config = require('../config');
+const logger = require('../utils/logger');
 
 // 创建Sequelize实例
 const sequelize = new Sequelize(
@@ -37,16 +38,16 @@ const sequelize = new Sequelize(
 // 测试数据库连接
 const testConnection = async () => {
   try {
-    console.log('尝试连接数据库:', {
+    logger.info('尝试连接数据库:', {
       host: config.DB_CONFIG.host,
       port: config.DB_CONFIG.port,
       database: config.DB_CONFIG.database,
       user: config.DB_CONFIG.username
     });
     await sequelize.authenticate();
-    console.log('数据库连接成功');
+    logger.info('数据库连接成功');
   } catch (error) {
-    console.error('数据库连接失败:', error);
+    logger.error('数据库连接失败:', { error: error.message, stack: error.stack });
   }
 };
 

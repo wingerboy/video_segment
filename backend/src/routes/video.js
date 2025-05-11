@@ -10,6 +10,7 @@ const { Op } = require('sequelize'); // 直接从sequelize导入Op操作符
 const ffmpeg = require('fluent-ffmpeg');
 const ffprobe = require('ffprobe-static');
 const config = require('../config');
+const logger = require('../utils/logger');
 
 // 设置ffprobe路径
 ffmpeg.setFfprobePath(ffprobe.path);
@@ -24,10 +25,11 @@ const UPLOAD_VIDEOS_DIR = config.PHYSICAL_VIDEOS_DIR;
 const UPLOAD_URL_PATH = config.UPLOAD_URL_PATH;
 const UPLOAD_FILE_SIZE_LIMIT = config.UPLOAD_FILE_SIZE_LIMIT;
 
-console.log('视频上传配置:');
-console.log(`- 物理路径配置: ${UPLOAD_VIDEOS_DIR}`);
-console.log(`- 虚拟URL路径: ${UPLOAD_URL_PATH}`);
-console.log(`- 文件大小限制: ${UPLOAD_FILE_SIZE_LIMIT}MB`);
+logger.info('视频上传配置:', {
+  physicalPath: UPLOAD_VIDEOS_DIR,
+  urlPath: UPLOAD_URL_PATH,
+  fileSizeLimit: `${UPLOAD_FILE_SIZE_LIMIT}MB`
+});
 
 // 确保上传目录存在
 const ensureDir = (dirPath) => {
@@ -36,13 +38,13 @@ const ensureDir = (dirPath) => {
     ? dirPath // 如果是绝对路径，直接使用
     : path.join(__dirname, '../../', dirPath); // 如果是相对路径，转为绝对路径
   
-  console.log('上传目录绝对路径:', absolutePath);
+  logger.debug('上传目录绝对路径:', { path: absolutePath });
   
   if (!fs.existsSync(absolutePath)) {
     fs.mkdirSync(absolutePath, { recursive: true });
-    console.log('创建上传目录:', absolutePath);
+    logger.info('创建上传目录:', { path: absolutePath });
   } else {
-    console.log('上传目录已存在:', absolutePath);
+    logger.debug('上传目录已存在:', { path: absolutePath });
   }
   
   return absolutePath;
@@ -109,7 +111,7 @@ const getVideoInfo = async (filePath) => {
   return new Promise((resolve, reject) => {
     ffmpeg.ffprobe(filePath, (err, metadata) => {
       if (err) {
-        console.error('获取视频信息失败:', err);
+        logger.error('获取视频信息失败:', { error: err.message, filePath });
         // 如果获取失败，返回默认值
         return resolve({
           dimensions: '1920x1080',
@@ -144,10 +146,10 @@ const getVideoInfo = async (filePath) => {
           codec: videoStream?.codec_name || 'unknown'
         };
         
-        console.log('视频信息:', result);
+        logger.debug('视频信息:', { videoInfo: result, filePath });
         resolve(result);
       } catch (error) {
-        console.error('解析视频信息失败:', error);
+        logger.error('解析视频信息失败:', { error: error.message, stack: error.stack, filePath });
         resolve({
           dimensions: '1920x1080',
           frameCount: 300,
@@ -174,8 +176,8 @@ router.post('/upload', authenticate, upload.single('video'), async (req, res) =>
     const fileName = req.file.filename;
     const virtualPath = `${UPLOAD_URL_PATH}/${fileName}`; // 使用虚拟路径格式
     
-    console.log('文件物理路径:', filePath);
-    console.log('存储的虚拟路径:', virtualPath);
+    logger.debug('文件物理路径:', { filePath, requestId: req.requestId });
+    logger.debug('存储的虚拟路径:', { virtualPath, requestId: req.requestId });
     
     // 获取视频名称，如果提供了自定义名称则使用，否则使用原始文件名
     const videoName = req.body.name || req.file.originalname;
@@ -219,16 +221,28 @@ router.post('/upload', authenticate, upload.single('video'), async (req, res) =>
       }
     });
   } catch (error) {
-    console.error('视频上传失败:', error);
-    // 如果上传过程中出错，尝试删除已上传的文件
+    logger.error('视频上传失败:', { 
+      error: error.message, 
+      stack: error.stack, 
+      user: req.user?.email,
+      requestId: req.requestId 
+    });
+    
+    // 如果有文件已上传，尝试删除
     if (req.file && req.file.path) {
       try {
         fs.unlinkSync(req.file.path);
+        logger.info('已删除上传的文件:', { path: req.file.path });
       } catch (unlinkError) {
-        console.error('删除上传文件失败:', unlinkError);
+        logger.error('删除上传文件失败:', { 
+          error: unlinkError.message, 
+          path: req.file.path,
+          requestId: req.requestId 
+        });
       }
     }
-    res.status(500).json({ message: error.message || 'Error uploading video' });
+    
+    res.status(500).json({ message: '视频上传失败', error: error.message });
   }
 });
 
@@ -269,7 +283,7 @@ router.get('/user/:id', authenticate, async (req, res) => {
   try {
     // 检查Op操作符是否正确引入
     if (!Op) {
-      console.error('Sequelize Op operators are not properly imported');
+      logger.error('Sequelize Op operators are not properly imported');
       return res.status(500).json({ 
         message: 'Failed to get video', 
         error: 'Database configuration error' 
@@ -311,7 +325,12 @@ router.get('/user/:id', authenticate, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get video error:', error);
+    logger.error('Get video error:', { 
+      error: error.message, 
+      stack: error.stack,
+      user: req.user?.email,
+      requestId: req.requestId
+    });
     res.status(500).json({ message: 'Failed to get video', error: error.message });
   }
 });
@@ -321,7 +340,7 @@ router.delete('/del/:id', authenticate, async (req, res) => {
   try {
     // 检查Op操作符是否正确引入
     if (!Op) {
-      console.error('Sequelize Op operators are not properly imported');
+      logger.error('Sequelize Op operators are not properly imported');
       return res.status(500).json({ 
         message: 'Failed to delete video', 
         error: 'Database configuration error' 
@@ -351,7 +370,13 @@ router.delete('/del/:id', authenticate, async (req, res) => {
     
     res.status(200).json({ message: 'Video deleted successfully' });
   } catch (error) {
-    console.error('Delete video error:', error);
+    logger.error('Delete video error:', { 
+      error: error.message, 
+      stack: error.stack,
+      videoId: req.params.id,
+      user: req.user?.email,
+      requestId: req.requestId 
+    });
     res.status(500).json({ message: 'Failed to delete video', error: error.message });
   }
 });
@@ -403,7 +428,12 @@ router.post('/segment/:id', authenticate, async (req, res) => {
       oriVideoPath: video.oriVideoPath // 返回绝对路径，可能用于后续处理
     });
   } catch (error) {
-    console.error('视频分割失败:', error);
+    logger.error('视频分割失败:', {
+      error: error.message,
+      stack: error.stack,
+      user: req.user?.email,
+      requestId: req.requestId
+    });
     res.status(500).json({ message: '视频分割失败', error: error.message });
   }
 });
@@ -436,7 +466,13 @@ router.get('/check/:md5Hash', authenticate, async (req, res) => {
     // 未找到相同MD5的视频
     res.status(404).json({ exists: false });
   } catch (error) {
-    console.error('检查视频失败:', error);
+    logger.error('检查视频失败:', { 
+      error: error.message, 
+      stack: error.stack,
+      videoId: req.params.id,
+      user: req.user?.email,
+      requestId: req.requestId
+    });
     res.status(500).json({ message: '检查视频失败', error: error.message });
   }
 });

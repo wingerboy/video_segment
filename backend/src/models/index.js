@@ -6,6 +6,7 @@ const Task = require('./Task');
 const AccountTransaction = require('./AccountTransaction');
 const ModelUsage = require('./ModelUsage');
 const InterfaceUsage = require('./InterfaceUsage');
+const logger = require('../utils/logger');
 
 // 定义模型关联 - 基于email字段而非userId
 
@@ -72,9 +73,9 @@ const syncDatabase = async () => {
     // force: true 会删除现有表并重新创建
     // 生产环境中建议设置为 false
     await sequelize.sync({ force: false, alter: true });
-    console.log('数据库表同步成功');
+    logger.info('数据库表同步成功');
   } catch (error) {
-    console.error('数据库表同步失败:', error);
+    logger.error('数据库表同步失败:', { error: error.message, stack: error.stack });
   }
 };
 

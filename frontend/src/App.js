@@ -27,6 +27,7 @@ import TaskList from './components/tasks/TaskList';
 import TaskDetails from './components/tasks/TaskDetails';
 import UserManagement from './pages/UserManagement';
 import AIServiceManagement from './pages/AIServiceManagement';
+import TaskManagement from './pages/TaskManagement';
 
 // 背景组件
 import BackgroundList from './components/backgrounds/BackgroundList';
@@ -127,6 +128,7 @@ function App() {
               <Route path="/segment" element={<PrivateRoute component={CreateTask} />} />
               <Route path="/user-management" element={<PrivateRoute component={UserManagement} isAdmin={true} />} />
               <Route path="/ai-service-management" element={<PrivateRoute component={AIServiceManagement} isAdmin={true} />} />
+              <Route path="/task-management" element={<PrivateRoute component={TaskManagement} isAdmin={true} />} />
               
               {/* 其他认证路由 */}
               {authenticatedRoutes.filter(route => route.path !== '/segment').map((route, index) => (

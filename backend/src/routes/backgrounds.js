@@ -8,6 +8,7 @@ const sharp = require('sharp'); // 引入sharp库
 const { authenticate } = require('../middleware/auth');
 const { Background } = require('../models');
 const config = require('../config');
+const logger = require('../utils/logger');
 
 // 加载环境变量
 dotenv.config();
@@ -19,10 +20,11 @@ const UPLOAD_BACKGROUNDS_DIR = config.PHYSICAL_BACKGROUNDS_DIR;
 const UPLOAD_URL_PATH = config.UPLOAD_BACKGROUNDS_URL_PATH;
 const UPLOAD_FILE_SIZE_LIMIT = config.UPLOAD_FILE_SIZE_LIMIT;
 
-console.log('背景图片上传配置:');
-console.log(`- 物理路径配置: ${UPLOAD_BACKGROUNDS_DIR}`);
-console.log(`- 虚拟URL路径: ${UPLOAD_URL_PATH}`);
-console.log(`- 文件大小限制: ${UPLOAD_FILE_SIZE_LIMIT}MB`);
+logger.info('背景图片上传配置:', {
+  physicalPath: UPLOAD_BACKGROUNDS_DIR,
+  urlPath: UPLOAD_URL_PATH,
+  fileSizeLimit: `${UPLOAD_FILE_SIZE_LIMIT}MB`
+});
 
 // 确保上传目录存在
 const ensureDir = (dirPath) => {
@@ -31,13 +33,13 @@ const ensureDir = (dirPath) => {
     ? dirPath // 如果是绝对路径，直接使用
     : path.join(__dirname, '../../', dirPath); // 如果是相对路径，转为绝对路径
   
-  console.log('上传目录绝对路径:', absolutePath);
+  logger.debug('上传目录绝对路径:', { path: absolutePath });
   
   if (!fs.existsSync(absolutePath)) {
     fs.mkdirSync(absolutePath, { recursive: true });
-    console.log('创建上传目录:', absolutePath);
+    logger.info('创建上传目录:', { path: absolutePath });
   } else {
-    console.log('上传目录已存在:', absolutePath);
+    logger.debug('上传目录已存在:', { path: absolutePath });
   }
   
   return absolutePath;
@@ -132,12 +134,15 @@ const getImageDetails = async (filePath) => {
     };
     
     // 记录元数据信息到日志
-    console.log('图片详细信息:', JSON.stringify(imageInfo, null, 2));
+    logger.debug('图片详细信息:', { imageInfo });
     
     return imageInfo;
   } catch (error) {
-    console.error('获取图片信息失败:', error);
-    console.error('文件路径:', filePath);
+    logger.error('获取图片信息失败:', { 
+      error: error.message, 
+      stack: error.stack,
+      filePath 
+    });
     
     // 返回默认值
     return {
@@ -178,7 +183,12 @@ router.get('/user', authenticate, async (req, res) => {
       updatedAt: background.updatedAt
     })));
   } catch (error) {
-    console.error('获取背景失败:', error);
+    logger.error('获取背景失败:', { 
+      error: error.message, 
+      stack: error.stack,
+      user: req.user?.email,
+      requestId: req.requestId
+    });
     res.status(500).json({ message: '获取背景失败', error: error.message });
   }
 });
@@ -196,12 +206,12 @@ router.post('/upload', authenticate, upload.single('background'), async (req, re
     const fileName = req.file.filename;
     const virtualPath = `${UPLOAD_URL_PATH}/${fileName}`; // 使用虚拟路径格式
     
-    console.log('文件物理路径:', filePath);
-    console.log('存储的虚拟路径:', virtualPath);
+    logger.debug('文件物理路径:', { filePath, requestId: req.requestId });
+    logger.debug('存储的虚拟路径:', { virtualPath, requestId: req.requestId });
     
     // 计算MD5哈希值
     const md5Hash = await calculateMD5(filePath);
-    console.log('文件MD5:', md5Hash);
+    logger.debug('文件MD5:', { md5Hash, filePath, requestId: req.requestId });
     
     // 获取图片详细信息
     const imageInfo = await getImageDetails(filePath);
@@ -246,15 +256,24 @@ router.post('/upload', authenticate, upload.single('background'), async (req, re
       }
     });
   } catch (error) {
-    console.error('上传背景失败:', error);
+    logger.error('上传背景失败:', { 
+      error: error.message, 
+      stack: error.stack,
+      user: req.user?.email,
+      requestId: req.requestId
+    });
     
     // 如果上传过程中出错，尝试删除已上传的文件
     if (req.file && req.file.path) {
       try {
         fs.unlinkSync(req.file.path);
-        console.log('已删除上传的文件:', req.file.path);
+        logger.info('已删除上传的文件:', { path: req.file.path, requestId: req.requestId });
       } catch (unlinkError) {
-        console.error('删除上传文件失败:', unlinkError);
+        logger.error('删除上传文件失败:', { 
+          error: unlinkError.message, 
+          path: req.file.path,
+          requestId: req.requestId
+        });
       }
     }
     
@@ -306,7 +325,13 @@ router.delete('/del/:id', authenticate, async (req, res) => {
     
     res.json({ message: '背景已删除', background: { id: background.id } });
   } catch (error) {
-    console.error('删除背景失败:', error);
+    logger.error('删除背景失败:', { 
+      error: error.message, 
+      stack: error.stack,
+      backgroundId: req.params.id,
+      user: req.user?.email,
+      requestId: req.requestId
+    });
     res.status(500).json({ message: '删除背景失败', error: error.message });
   }
 });
@@ -339,7 +364,13 @@ router.put('/usage/:id', authenticate, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('更新背景使用次数失败:', error);
+    logger.error('更新背景使用次数失败:', { 
+      error: error.message, 
+      stack: error.stack,
+      backgroundId: req.params.id,
+      user: req.user?.email,
+      requestId: req.requestId
+    });
     res.status(500).json({ message: '更新失败', error: error.message });
   }
 });
@@ -371,7 +402,13 @@ router.get('/check/:md5Hash', authenticate, async (req, res) => {
     // 未找到相同MD5的背景图
     res.status(404).json({ exists: false });
   } catch (error) {
-    console.error('检查背景图失败:', error);
+    logger.error('检查背景图失败:', { 
+      error: error.message, 
+      stack: error.stack,
+      backgroundId: req.params.id,
+      user: req.user?.email,
+      requestId: req.requestId
+    });
     res.status(500).json({ message: '检查背景图失败', error: error.message });
   }
 });
@@ -401,7 +438,12 @@ router.get('/user/:id', authenticate, async (req, res) => {
         extraInfo = JSON.parse(background.backgroundExtra);
       }
     } catch (parseError) {
-      console.error('解析背景额外信息失败:', parseError);
+      logger.error('解析背景额外信息失败:', { 
+        error: parseError.message, 
+        stack: parseError.stack,
+        backgroundId: background?.id,
+        requestId: req.requestId
+      });
     }
     
     // 返回格式化的背景信息
@@ -429,7 +471,13 @@ router.get('/user/:id', authenticate, async (req, res) => {
       updatedAt: background.updatedAt
     });
   } catch (error) {
-    console.error('获取背景详情失败:', error);
+    logger.error('获取背景详情失败:', { 
+      error: error.message, 
+      stack: error.stack,
+      backgroundId: req.params.id,
+      user: req.user?.email,
+      requestId: req.requestId
+    });
     res.status(500).json({ message: '获取背景详情失败', error: error.message });
   }
 });

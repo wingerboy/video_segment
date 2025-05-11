@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 const bcrypt = require('bcrypt');
 const sequelize = require('./db');
+const logger = require('../utils/logger');
 
 // 定义User模型
 const User = sequelize.define('User', {
@@ -106,7 +107,10 @@ User.prototype.comparePassword = async function(candidatePassword) {
   try {
     return await bcrypt.compare(candidatePassword, this.password);
   } catch (error) {
-    console.error('Password comparison error:', error);
+    logger.error('Password comparison error:', { 
+      error: error.message, 
+      stack: error.stack
+    });
     return false;
   }
 };

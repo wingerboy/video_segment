@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('./db');
+const logger = require('../utils/logger');
 
 // 定义模型使用记录
 const ModelUsage = sequelize.define('ModelUsage', {
@@ -60,10 +61,10 @@ const ModelUsage = sequelize.define('ModelUsage', {
             modelDescription: '准确率高、模型推理时间长',
             modelUsageCnt: 0
           });
-          console.log('成功添加默认模型: BEN2_Base (李白)');
+          logger.info('成功添加默认模型: BEN2_Base (李白)');
         }
       } catch (error) {
-        console.error('添加默认模型失败:', error);
+        logger.error('添加默认模型失败:', { error: error.message, stack: error.stack });
       }
     }
   }
@@ -113,10 +114,10 @@ sequelize.afterSync(async () => {
         modelDescription: '准确率高、模型推理时间长',
         modelUsageCnt: 0
       });
-      console.log('已创建默认模型: BEN2_Base (李白)');
+      logger.info('已创建默认模型: BEN2_Base (李白)');
     }
   } catch (error) {
-    console.error('初始化默认模型失败:', error);
+    logger.error('初始化默认模型失败:', { error: error.message, stack: error.stack });
   }
 });
 

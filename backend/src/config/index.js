@@ -1,5 +1,6 @@
 const dotenv = require('dotenv');
 const path = require('path');
+const logger = require('../utils/logger');
 
 // 根据环境加载不同的.env文件
 const envFile = process.env.VIDEO_NODE_ENV === 'production' ? '.env.production' : '.env';
@@ -44,7 +45,7 @@ const config = {
     host: process.env.VIDEO_DB_HOST || 'localhost',
     port: process.env.VIDEO_DB_PORT || 3306,
     dialect: 'mysql',
-    logging: process.env.VIDEO_NODE_ENV === 'production' ? false : console.log,
+    logging: process.env.VIDEO_NODE_ENV === 'production' ? false : (msg) => logger.debug(msg),
     dialectOptions: {
       // 解决IPv6问题
       host: process.env.VIDEO_DB_HOST || 'localhost',
@@ -59,7 +60,7 @@ const config = {
 };
 
 // 打印关键配置（不包含敏感信息）
-console.log('🔧 加载配置：', {
+logger.info('🔧 加载配置：', {
   NODE_ENV: process.env.VIDEO_NODE_ENV || 'development',
   PORT: config.PORT,
   API_BASE_URL: config.API_BASE_URL,
