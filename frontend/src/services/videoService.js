@@ -32,27 +32,35 @@ export const getFullUrl = (path) => {
   if (path.startsWith('http')) return path;
   
   // 确定使用哪种路径类型
-  // 如果路径看起来像一个URL路径（包含videos/但不包含完整的文件系统路径）
-  // 则直接使用，否则尝试提取关键部分
   let cleanPath = path;
+  
+  // 检查是否包含特定的系统路径模式
+  if (cleanPath.includes('/root/gpufree-share/videos/') || 
+      cleanPath.includes('/root/gpufree-data/') ||
+      cleanPath.includes('/Users/') || 
+      cleanPath.includes('/home/')) {
+    
+    // 获取文件名
+    const filename = cleanPath.split('/').pop();
+    
+    // 检查路径中包含的目录类型
+    if (cleanPath.includes('/videos/') || cleanPath.includes('/originvideo/')) {
+      cleanPath = `/videos/${filename}`;
+    } else if (cleanPath.includes('/backgrounds/')) {
+      cleanPath = `/backgrounds/${filename}`;
+    } else if (cleanPath.includes('/masks/')) {
+      cleanPath = `/masks/${filename}`;
+    } else if (cleanPath.includes('/results/')) {
+      cleanPath = `/results/${filename}`;
+    } else {
+      // 如果无法确定资源类型，就使用默认的videos路径
+      cleanPath = `/videos/${filename}`;
+    }
+  }
   
   // 确保路径以/开头
   if (!cleanPath.startsWith('/')) {
     cleanPath = '/' + cleanPath;
-  }
-  
-  // 如果是绝对路径（包含系统路径如/Users/或/home/等），
-  // 尝试提取videos/部分作为URL路径
-  if (cleanPath.includes('/Users/') || cleanPath.includes('/home/')) {
-    const pathParts = cleanPath.split('/');
-    const videosIndex = pathParts.findIndex(part => part === 'videos');
-    
-    if (videosIndex !== -1 && pathParts.length > videosIndex + 1) {
-      // 提取videos/filename.mp4这样的关键部分
-      cleanPath = '/' + pathParts.slice(videosIndex).join('/');
-    } else {
-      console.warn('无法从路径中提取URL部分:', path);
-    }
   }
   
   console.log('原始路径:', path);
