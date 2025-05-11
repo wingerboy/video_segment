@@ -151,19 +151,21 @@ const Navbar = () => {
                     个人资料
                   </MenuItem>
                   {currentUser.role === 'admin' && (
-                    <>
-                      <MenuItem component={Link} to="/user-management" onClick={handleClose}>
+                    [
+                      <MenuItem key="user-management" component={Link} to="/user-management" onClick={handleClose}>
                         账号管理
-                      </MenuItem>
-                      <MenuItem component={Link} to="/ai-service-management" onClick={handleClose}>
+                      </MenuItem>,
+                      <MenuItem key="ai-service-management" component={Link} to="/ai-service-management" onClick={handleClose}>
                         AI服务管理
                       </MenuItem>
-                    </>
+                    ]
                   )}
                   {isDevelopment && currentUser.role !== 'admin' && (
-                    <MenuItem onClick={handleSetAdmin}>
-                      设为管理员 (开发)
-                    </MenuItem>
+                    [
+                      <MenuItem key="set-admin" onClick={handleSetAdmin}>
+                        设为管理员 (开发)
+                      </MenuItem>
+                    ]
                   )}
                   <MenuItem onClick={handleLogout}>退出登录</MenuItem>
                 </Menu>

@@ -101,22 +101,31 @@ class TaskScheduler {
       
       // 2. 准备任务数据
       const taskData = {
-        taskId: task.id,
+        taskId: String(task.id),  // 转换为字符串类型，适配Python的str类型
         videoPath: task.oriVideoPath,
-        foregroundPath: task.foregroundPath || null,
-        backgroundPath: task.backgroundPath || null,
+        foregroundPath: task.foregroundPath || null,  // Optional[str] = None，使用null
+        backgroundPath: task.backgroundPath || null,  // Optional[str] = None，使用null
         modelName: task.modelName,
-        modelAlias: task.modelAlias,
-        callbackUrl: `${config.API_BASE_URL}/api/tasks/callback`,
+        modelAlias: task.modelAlias || null,  // Optional[str] = None，使用null
+        callbackUrl: `${config.API_BASE_URL}/api/tasks/callback`,  // 保持与后端路由一致
         workerUrl: idleInterface.interfaceAddress
       };
       
+      console.log(`发送任务数据到接口: ${JSON.stringify(taskData, null, 2)}`);
+      
       // 3. 调用接口服务
       const response = await axios.post(`${idleInterface.interfaceAddress}/api/video/segment`, taskData, {
+        headers: {
+          'Content-Type': 'application/json'
+        },
         timeout: 100000000 // 100000秒超时
       });
       
-      if (response.data && response.data.success) {
+      // 打印接口返回的响应信息
+      console.log(`接口返回响应:`, response.data);
+      
+      // AI server返回格式： { taskId, status: "accepted", message, maskVideoPath }
+      if (response.data && response.data.status === "accepted") {
         console.log(`任务 #${task.id} 已成功分配到接口`);
         
         // 4. 更新接口状态为busy

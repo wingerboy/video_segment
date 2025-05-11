@@ -38,27 +38,37 @@ export const getFullUrl = (path) => {
   }
   
   // 确定使用哪种路径类型
-  // 如果路径看起来像一个URL路径（包含backgrounds/但不包含完整的文件系统路径）
-  // 则直接使用，否则尝试提取关键部分
   let cleanPath = path;
+  
+  // 检查是否包含特定的系统路径模式
+  if (cleanPath.includes('/root/gpufree-share/videos/') || 
+      cleanPath.includes('/root/gpufree-data/') ||
+      cleanPath.includes('/Users/') || 
+      cleanPath.includes('/home/')) {
+    
+    // 获取文件名
+    const filename = cleanPath.split('/').pop();
+    
+    // 检查路径中包含的目录类型
+    if (cleanPath.includes('/background/')) {
+      cleanPath = `/backgrounds/${filename}`;
+    } else if (cleanPath.includes('/backgrounds/')) {
+      cleanPath = `/backgrounds/${filename}`;
+    } else if (cleanPath.includes('/videos/') || cleanPath.includes('/originvideo/')) {
+      cleanPath = `/videos/${filename}`;
+    } else if (cleanPath.includes('/masks/')) {
+      cleanPath = `/masks/${filename}`;
+    } else if (cleanPath.includes('/results/')) {
+      cleanPath = `/results/${filename}`;
+    } else {
+      // 如果无法确定资源类型，就使用默认的backgrounds路径
+      cleanPath = `/backgrounds/${filename}`;
+    }
+  }
   
   // 确保路径以/开头
   if (!cleanPath.startsWith('/')) {
     cleanPath = '/' + cleanPath;
-  }
-  
-  // 如果是绝对路径（包含系统路径如/Users/或/home/等），
-  // 尝试提取backgrounds/部分作为URL路径
-  if (cleanPath.includes('/Users/') || cleanPath.includes('/home/')) {
-    const pathParts = cleanPath.split('/');
-    const bgIndex = pathParts.findIndex(part => part === 'backgrounds' || part === 'background');
-    
-    if (bgIndex !== -1 && pathParts.length > bgIndex + 1) {
-      // 提取backgrounds/filename.jpg这样的关键部分
-      cleanPath = '/' + (pathParts[bgIndex] === 'background' ? 'backgrounds' : pathParts[bgIndex]) + '/' + pathParts[bgIndex + 1];
-    } else {
-      console.warn('无法从路径中提取URL部分:', path);
-    }
   }
   
   console.log('背景图片路径处理:');
