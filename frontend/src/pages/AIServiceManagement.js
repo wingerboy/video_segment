@@ -36,6 +36,7 @@ import {
   getAllInterfaces, 
   addInterface, 
   updateInterfaceStatus,
+  deleteInterface,
   getAllModels,
   addModel,
   updateModel,
@@ -313,6 +314,23 @@ const AIServiceManagement = () => {
     }
   };
 
+  const handleDeleteInterface = async (interfaceId) => {
+    if (!window.confirm('确定要删除这个接口吗？')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await deleteInterface(interfaceId);
+      await fetchInterfaces();
+    } catch (error) {
+      console.error('删除接口失败:', error);
+      setError(`删除接口失败: ${error.response?.data?.message || error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Container maxWidth="lg">
       <Box sx={{ mt: 4, mb: 4 }}>
@@ -400,6 +418,15 @@ const AIServiceManagement = () => {
                             title="编辑接口"
                           >
                             <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton 
+                            size="small" 
+                            onClick={() => handleDeleteInterface(interfaceItem.id)}
+                            color="error"
+                            title="删除接口"
+                            sx={{ ml: 1 }}
+                          >
+                            <DeleteIcon fontSize="small" />
                           </IconButton>
                         </TableCell>
                       </TableRow>

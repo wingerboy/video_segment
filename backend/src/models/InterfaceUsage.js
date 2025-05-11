@@ -183,6 +183,7 @@ InterfaceUsage.updateHeartbeat = async function(interfaceAddress) {
 // 检查离线的接口
 InterfaceUsage.checkOfflineInterfaces = async function(heartbeatTimeout = 15) {
   const timeoutDate = new Date(Date.now() - (heartbeatTimeout * 60 * 1000)); // 默认15分钟超时
+  const Task = require('./Task'); // 引入Task模型
   
   // 查找所有最后心跳时间早于超时时间或没有心跳记录的非离线接口
   const interfaces = await this.findAll({
@@ -195,8 +196,28 @@ InterfaceUsage.checkOfflineInterfaces = async function(heartbeatTimeout = 15) {
     }
   });
   
-  // 将这些接口标记为离线
+  // 将这些接口标记为离线，同时处理相关任务
   for (const interfaceRecord of interfaces) {
+    // 查找该接口正在处理的任务
+    if (interfaceRecord.currentTaskId) {
+      // 查询任务状态
+      const task = await Task.findOne({
+        where: { 
+          id: interfaceRecord.currentTaskId,
+          taskStatus: 'processing' // 确保任务还在处理中
+        }
+      });
+
+      // 如果找到任务且状态为处理中，则将其状态更新为失败
+      if (task) {
+        task.taskStatus = 'failed';
+        task.taskRespose = 'AI服务离线（心跳）';
+        await task.save();
+        console.log(`任务 #${task.id} 已标记为失败：AI服务离线（心跳）`);
+      }
+    }
+
+    // 更新接口状态为离线
     interfaceRecord.status = 'offline';
     await interfaceRecord.save();
     console.log(`接口 ${interfaceRecord.interfaceAddress} 已标记为离线：心跳超时`);

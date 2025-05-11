@@ -110,6 +110,16 @@ export const updateInterfaceStatus = async (interfaceId, status) => {
   }
 };
 
+export const deleteInterface = async (interfaceId) => {
+  try {
+    const response = await api.delete(`/admin/interfaces/${interfaceId}`);
+    return response.data;
+  } catch (error) {
+    console.error('删除接口失败:', error);
+    throw error;
+  }
+};
+
 // 任务统计相关API
 export const getTaskStats = async (params) => {
   try {
