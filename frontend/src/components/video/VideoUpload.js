@@ -33,6 +33,7 @@ import {
   Error as ErrorIcon
 } from '@mui/icons-material';
 import { uploadVideo, getFullUrl, calculateMD5, getAllVideos } from '../../services/videoService';
+import { UPLOAD_CONFIG } from '../../config';
 
 // 自定义上传input样式
 const VisuallyHiddenInput = styled('input')({
@@ -148,9 +149,9 @@ const VideoUpload = ({ onUploadSuccess }) => {
       return false;
     }
     
-    // 验证文件大小 (限制为2000MB)
-    if (file.size > 2000 * 1024 * 1024) {
-      setFileError('文件大小超过限制。最大允许2000MB。');
+    // 验证文件大小，使用配置中的值
+    if (file.size > UPLOAD_CONFIG.MAX_VIDEO_SIZE) {
+      setFileError(`文件大小超过限制。最大允许${UPLOAD_CONFIG.MAX_VIDEO_SIZE / (1024 * 1024)}MB。`);
       return false;
     }
     
@@ -349,7 +350,7 @@ const VideoUpload = ({ onUploadSuccess }) => {
                   选择视频文件
                 </Typography>
                 <Typography variant="body2" color="text.secondary" paragraph>
-                  支持 MP4, WebM, MOV, AVI 等格式，最大 100MB
+                  支持 {UPLOAD_CONFIG.VIDEO_FORMAT_SUPPORT_TEXT}，最大 {UPLOAD_CONFIG.MAX_VIDEO_SIZE / (1024 * 1024)}MB
                 </Typography>
                 <Button
                   component="label"

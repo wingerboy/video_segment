@@ -351,7 +351,7 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
     setSuccessDialogOpen(false);
     navigate('/dashboard#backgrounds');
   };
-  
+
   return (
     <Box sx={{ width: '100%' }}>
       {/* 上传表单 */}
@@ -369,7 +369,7 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
             ) : (
               <Box sx={{ textAlign: 'center', p: 2 }}>
                 <AddPhotoIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
-                <Typography variant="h6" gutterBottom>
+      <Typography variant="h6" gutterBottom>
                   选择背景图片
                 </Typography>
                 <Typography variant="body2" color="text.secondary" paragraph>
@@ -425,7 +425,7 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
                   <Grid item xs={12}>
                     <Typography variant="body2" color="text.secondary" noWrap>
                       MD5: {fileHash}
-                    </Typography>
+      </Typography>
                   </Grid>
                 )}
               </Grid>
@@ -435,11 +435,11 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
         
         <Grid item xs={12} md={6}>
           {/* 表单区域 */}
-          <TextField
-            fullWidth
+        <TextField
+          fullWidth
             label="背景名称"
-            value={backgroundName}
-            onChange={(e) => setBackgroundName(e.target.value)}
+          value={backgroundName}
+          onChange={(e) => setBackgroundName(e.target.value)}
             margin="normal"
             required
             error={formError === '请输入背景名称'}
@@ -469,9 +469,9 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
           )}
           
           <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-            <Button
-              variant="contained"
-              color="primary"
+        <Button
+          variant="contained"
+          color="primary"
               size="large"
               startIcon={isUploading ? <CircularProgress size={20} color="inherit" /> : <UploadIcon />}
               onClick={handleUpload}
@@ -479,17 +479,17 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
               fullWidth
             >
               {isUploading ? '上传中...' : '上传背景'}
-            </Button>
-          </Box>
-          
+        </Button>
+      </Box>
+      
           {isUploading && (
             <Box sx={{ mt: 2 }}>
               <LinearProgress variant="determinate" value={uploadProgress} sx={{ height: 8, borderRadius: 4 }} />
               <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 1 }}>
                 {uploadProgress.toFixed(0)}%
-              </Typography>
-            </Box>
-          )}
+          </Typography>
+        </Box>
+      )}
         </Grid>
       </Grid>
       
@@ -603,11 +603,11 @@ const BackgroundUpload = ({ onUploadSuccess }) => {
                     {uploadedBackground.description && (
                       <Typography variant="body2" color="text.secondary">
                         {uploadedBackground.description}
-                      </Typography>
+      </Typography>
                     )}
                   </Grid>
                 </Grid>
-              </Paper>
+    </Paper>
             )}
           </Box>
         </DialogContent>

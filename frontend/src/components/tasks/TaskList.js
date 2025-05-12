@@ -239,17 +239,19 @@ const TaskCard = ({ task, onCancel, isCancelling, formatDate, onDownloadResult }
       </CardContent>
       
       {/* 下载按钮，只有已完成且有输出路径的任务才显示 */}
-      {task.taskStatus === 'completed' && task.outputVideoPath && (
+      {task.taskStatus === 'completed' && (
         <CardActions sx={{ px: 2, pb: 2, pt: 0, justifyContent: 'flex-end' }}>
-          <Button 
-            variant="contained" 
-            color="primary" 
-            size="small"
-            startIcon={<DownloadIcon />}
-            onClick={() => onDownloadResult(task.outputVideoPath)}
-          >
-            下载结果
-          </Button>
+          {task.outputVideoPath && (
+            <Button 
+              variant="contained" 
+              color="primary" 
+              size="small"
+              startIcon={<DownloadIcon />}
+              onClick={() => onDownloadResult(task.outputVideoPath)}
+            >
+              下载结果
+            </Button>
+          )}
         </CardActions>
       )}
     </Card>
@@ -283,7 +285,7 @@ const TaskList = () => {
       if (isRefresh) {
         setRefreshing(true);
       } else {
-        setLoading(true);
+      setLoading(true);
       }
       
       const data = await getAllTasks();
@@ -360,6 +362,7 @@ const TaskList = () => {
     if (!outputPath) return;
     
     const fullUrl = getFullUrl(outputPath);
+    console.log('下载视频结果:', fullUrl);
     window.open(fullUrl, '_blank');
   };
 
@@ -367,9 +370,9 @@ const TaskList = () => {
   if (loading && tasks.length === 0) {
     return (
       <Container maxWidth="lg">
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-          <CircularProgress />
-        </Box>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <CircularProgress />
+      </Box>
       </Container>
     );
   }
@@ -386,40 +389,40 @@ const TaskList = () => {
           flexWrap: 'wrap',
           gap: 2
         }}>
-          <Typography variant="h4" component="h1">
-            任务列表
-          </Typography>
+        <Typography variant="h4" component="h1">
+          任务列表
+        </Typography>
           
           <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button
-              variant="outlined"
+          <Button
+            variant="outlined"
               onClick={() => fetchTasks(true)}
               startIcon={refreshing ? <CircularProgress size={20} /> : <RefreshIcon />}
               disabled={refreshing}
             >
               {refreshing ? '刷新中...' : '刷新'}
-            </Button>
+          </Button>
             
-            <Button
-              variant="contained"
-              color="primary"
+          <Button
+            variant="contained"
+            color="primary"
               onClick={() => navigate('/segment')}
               startIcon={<AddIcon />}
-            >
-              创建任务
-            </Button>
-          </Box>
+          >
+            创建任务
+          </Button>
         </Box>
+      </Box>
 
         {/* 错误提示 */}
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
-        )}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
 
         {/* 任务列表 */}
-        {tasks.length === 0 ? (
+      {tasks.length === 0 ? (
           <Box sx={{ 
             textAlign: 'center', 
             py: 8,
@@ -428,24 +431,24 @@ const TaskList = () => {
             borderRadius: 2
           }}>
             <Typography variant="h6" color="text.secondary" gutterBottom>
-              暂无任务
-            </Typography>
+            暂无任务
+          </Typography>
             <Typography variant="body1" color="text.secondary" paragraph>
               创建一个视频处理任务开始使用吧！
-            </Typography>
-            <Button
-              variant="contained"
-              color="primary"
+          </Typography>
+          <Button
+            variant="contained"
+            color="primary"
               onClick={() => navigate('/segment')}
               startIcon={<AddIcon />}
               sx={{ mt: 2 }}
-            >
-              创建任务
-            </Button>
-          </Box>
-        ) : (
-          <Grid container spacing={3}>
-            {tasks.map((task) => (
+          >
+            创建任务
+          </Button>
+        </Box>
+      ) : (
+        <Grid container spacing={3}>
+          {tasks.map((task) => (
               <Grid item xs={12} md={6} key={task.id}>
                 <TaskCard 
                   task={task} 
@@ -454,10 +457,10 @@ const TaskList = () => {
                   formatDate={formatDate}
                   onDownloadResult={handleDownloadResult}
                 />
-              </Grid>
-            ))}
-          </Grid>
-        )}
+            </Grid>
+          ))}
+        </Grid>
+      )}
       </Box>
     </Container>
   );
