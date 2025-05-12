@@ -33,8 +33,10 @@ const config = {
   // 上传目录配置
   PHYSICAL_VIDEOS_DIR: process.env.VIDEO_PHYSICAL_VIDEOS_DIR || path.join(__dirname, '../../uploads/videos'),
   PHYSICAL_BACKGROUNDS_DIR: process.env.VIDEO_PHYSICAL_BACKGROUNDS_DIR || path.join(__dirname, '../../uploads/backgrounds'),
+  PHYSICAL_OUTPUT_DIR: process.env.VIDEO_PHYSICAL_OUTPUT_DIR || path.join(__dirname, '../../uploads/output'),
   UPLOAD_URL_PATH: process.env.VIDEO_UPLOAD_URL_PATH || 'videos',
   UPLOAD_BACKGROUNDS_URL_PATH: process.env.VIDEO_UPLOAD_BACKGROUNDS_URL_PATH || 'backgrounds',
+  DOWNLOAD_OUTPUT_URL_PATH: process.env.VIDEO_DOWNLOAD_OUTPUT_URL_PATH || 'output',
   UPLOAD_FILE_SIZE_LIMIT: parseInt(process.env.VIDEO_UPLOAD_FILE_SIZE_LIMIT || '100'), // 默认100MB
   
   // 数据库配置

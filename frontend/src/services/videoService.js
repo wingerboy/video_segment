@@ -44,7 +44,9 @@ export const getFullUrl = (path) => {
     const filename = cleanPath.split('/').pop();
     
     // 检查路径中包含的目录类型
-    if (cleanPath.includes('/videos/') || cleanPath.includes('/originvideo/')) {
+    if (cleanPath.includes('/videos/output/') || cleanPath.includes('/output/')) {
+      cleanPath = `/output/${filename}`;
+    } else if (cleanPath.includes('/videos/') || cleanPath.includes('/originvideo/')) {
       cleanPath = `/videos/${filename}`;
     } else if (cleanPath.includes('/backgrounds/') || cleanPath.includes('/background/')) {
       cleanPath = `/backgrounds/${filename}`;

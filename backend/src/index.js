@@ -74,6 +74,10 @@ const VIRTUAL_VIDEOS_PATH = config.UPLOAD_URL_PATH;
 const PHYSICAL_BACKGROUNDS_DIR = config.PHYSICAL_BACKGROUNDS_DIR;
 const VIRTUAL_BACKGROUNDS_PATH = config.UPLOAD_BACKGROUNDS_URL_PATH;
 
+// 定义输出视频的物理路径和虚拟路径
+const PHYSICAL_OUTPUT_DIR = config.PHYSICAL_OUTPUT_DIR;
+const VIRTUAL_OUTPUT_PATH = config.DOWNLOAD_OUTPUT_URL_PATH;
+
 // 确保上传目录存在
 const ensureDir = (dirPath) => {
   if (!fs.existsSync(dirPath)) {
@@ -86,13 +90,18 @@ const ensureDir = (dirPath) => {
 ensureDir(PHYSICAL_VIDEOS_DIR);
 ensureDir(PHYSICAL_BACKGROUNDS_DIR);
 
+// 创建输出目录
+ensureDir(PHYSICAL_OUTPUT_DIR);
+
 // 配置静态文件服务
 app.use(`/${VIRTUAL_VIDEOS_PATH}`, express.static(PHYSICAL_VIDEOS_DIR));
 app.use(`/${VIRTUAL_BACKGROUNDS_PATH}`, express.static(PHYSICAL_BACKGROUNDS_DIR));
+app.use(`/${VIRTUAL_OUTPUT_PATH}`, express.static(PHYSICAL_OUTPUT_DIR));
 
 logger.info('静态文件服务配置完成', {
   videoMapping: `/${VIRTUAL_VIDEOS_PATH} => ${PHYSICAL_VIDEOS_DIR}`,
-  backgroundMapping: `/${VIRTUAL_BACKGROUNDS_PATH} => ${PHYSICAL_BACKGROUNDS_DIR}`
+  backgroundMapping: `/${VIRTUAL_BACKGROUNDS_PATH} => ${PHYSICAL_BACKGROUNDS_DIR}`,
+  outputMapping: `/${VIRTUAL_OUTPUT_PATH} => ${PHYSICAL_OUTPUT_DIR}`
 });
 
 // Routes
