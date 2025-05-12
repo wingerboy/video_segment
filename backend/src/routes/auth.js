@@ -214,7 +214,7 @@ router.get('/me', authenticate, async (req, res) => {
 });
 
 // 为特定邮箱用户设置管理员权限
-router.post('/set-admin', async (req, res) => {
+router.post('/set-admin', authenticate,  async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     
@@ -223,7 +223,7 @@ router.post('/set-admin', async (req, res) => {
     }
     
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const decoded = jwt.verify(token, config.JWT_SECRET);
     
     // 检查用户邮箱是否为允许设置为管理员的邮箱
     const adminEmails = ['wingerliu2019@gmail.com']; // 可以设置为管理员的邮箱列表
@@ -266,8 +266,8 @@ router.post('/set-admin', async (req, res) => {
         username: user.username,
         role: user.role
       },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
+      config.JWT_SECRET,
+      { expiresIn: config.JWT_EXPIRES_IN }
     );
     
     logger.auth('用户已设置为管理员', { 

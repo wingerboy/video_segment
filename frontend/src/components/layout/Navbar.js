@@ -46,7 +46,7 @@ const Navbar = () => {
   // 开发环境下设置当前用户为管理员
   const handleSetAdmin = async () => {
     try {
-      const response = await axios.post(`${API_URL}/auth/dev/set-admin`);
+      const response = await axios.post(`${API_URL}/auth/set-admin`);
       
       if (response.data && response.data.token) {
         // 保存新token和用户信息
