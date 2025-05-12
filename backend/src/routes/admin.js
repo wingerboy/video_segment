@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
 const { authenticate, isAdmin } = require('../middleware/auth');
-const { User, InterfaceUsage, Transaction, Task, ModelUsage } = require('../models');
+const { User, InterfaceUsage, AccountTransaction, Task, ModelUsage } = require('../models');
 const sequelize = require('../models/db');
 const logger = require('../utils/logger');
 
@@ -171,15 +171,14 @@ router.post('/users/:userId/recharge', authenticate, isAdmin, async (req, res) =
     }
     
     // 创建一个事务
-    const transaction = await Transaction.create({
-      userId: user.id,
+    const transaction = await AccountTransaction.create({
+      email: user.email,
+      transactionType: 'recharge',
       amount: parseFloat(amount),
-      type: 'recharge',
-      status: 'completed',
-      paymentId: paymentId || null,
+      target: null,
       description: description || '管理员手动充值',
-      operatorId: req.user.id,
-      operatorName: req.user.username
+      interfaceAddress: null,
+      transactionTime: new Date()
     });
     
     // 更新用户余额

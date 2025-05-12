@@ -15,7 +15,7 @@ import axios from 'axios';
 import { API_URL } from '../../config';
 
 const Profile = () => {
-  const { currentUser, logout } = useContext(AuthContext);
+  const { currentUser, logout, updateProfile } = useContext(AuthContext);
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({
     username: currentUser?.username || '',
@@ -43,10 +43,9 @@ const Profile = () => {
     setSuccess('');
 
     try {
-      const response = await axios.put(`${API_URL}/auth/profile`, formData);
+      await updateProfile(formData);
       setSuccess('资料更新成功');
       setEditMode(false);
-      // 这里需要更新currentUser，你可能需要在AuthContext中添加更新方法
     } catch (error) {
       setError(error.response?.data?.message || '更新失败');
     } finally {
