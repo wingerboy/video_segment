@@ -369,7 +369,7 @@ const TaskList = () => {
     // 创建下载链接并触发下载
     const link = document.createElement('a');
     link.href = downloadUrl;
-    link.target = '_blank'; // 这样如果下载失败，至少会在新标签页打开
+    link.download = 'result.mp4'; // 确保下载的文件名为result.mp4
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

@@ -87,8 +87,9 @@ const Profile = () => {
                 name="email"
                 type="email"
                 value={formData.email}
-                onChange={handleChange}
+                disabled
                 margin="normal"
+                helperText="邮箱不可更改"
               />
               <TextField
                 fullWidth

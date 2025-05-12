@@ -213,18 +213,8 @@ router.get('/me', authenticate, async (req, res) => {
   }
 });
 
-// 开发环境下设置当前用户为管理员
-router.post('/dev/set-admin', async (req, res) => {
-  // 仅在开发环境下启用此路由
-  if (process.env.NODE_ENV !== 'development') {
-    logger.warn('尝试在非开发环境下使用开发者API', { 
-      path: '/dev/set-admin',
-      environment: process.env.NODE_ENV,
-      requestId: req.requestId
-    });
-    return res.status(404).json({ message: '该接口只在开发环境下可用' });
-  }
-
+// 为特定邮箱用户设置管理员权限
+router.post('/set-admin', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     
@@ -235,7 +225,19 @@ router.post('/dev/set-admin', async (req, res) => {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
     
-    logger.auth('开发环境: 用户请求设置为管理员', { 
+    // 检查用户邮箱是否为允许设置为管理员的邮箱
+    const adminEmails = ['wingerliu2019@gmail.com']; // 可以设置为管理员的邮箱列表
+    
+    if (!adminEmails.includes(decoded.email)) {
+      logger.auth('设置管理员失败: 用户邮箱不在白名单中', { 
+        userId: decoded.id,
+        email: decoded.email,
+        requestId: req.requestId
+      });
+      return res.status(403).json({ message: '您的账号没有获得管理员权限的资格' });
+    }
+    
+    logger.auth('用户请求设置为管理员', { 
       userId: decoded.id,
       email: decoded.email,
       requestId: req.requestId
@@ -245,7 +247,7 @@ router.post('/dev/set-admin', async (req, res) => {
     const user = await User.findByPk(decoded.id);
     
     if (!user) {
-      logger.auth('开发环境: 设置管理员失败 - 用户不存在', { 
+      logger.auth('设置管理员失败 - 用户不存在', { 
         userId: decoded.id,
         requestId: req.requestId
       });
@@ -268,7 +270,7 @@ router.post('/dev/set-admin', async (req, res) => {
       { expiresIn: '7d' }
     );
     
-    logger.auth('开发环境: 用户已设置为管理员', { 
+    logger.auth('用户已设置为管理员', { 
       userId: user.id,
       email: user.email,
       username: user.username,
@@ -292,6 +294,69 @@ router.post('/dev/set-admin', async (req, res) => {
       requestId: req.requestId
     });
     return res.status(500).json({ message: '服务器错误' });
+  }
+});
+
+// 更新用户资料
+router.put('/profile', authenticate, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { username } = req.body;
+    
+    logger.user('用户请求更新个人资料', { 
+      userId,
+      email: req.user.email,
+      requestId: req.requestId,
+      updatedFields: { username }
+    });
+    
+    // 获取当前用户
+    const user = await User.findByPk(userId);
+    
+    if (!user) {
+      logger.user('更新个人资料失败: 用户不存在', { 
+        userId,
+        requestId: req.requestId
+      });
+      return res.status(404).json({ message: '用户不存在' });
+    }
+    
+    // 只允许更新用户名，不允许更新邮箱
+    if (username) {
+      user.username = username;
+    }
+    
+    await user.save();
+    
+    logger.user('用户资料更新成功', { 
+      userId: user.id,
+      email: user.email,
+      username: user.username,
+      requestId: req.requestId
+    });
+    
+    return res.json({
+      message: '资料更新成功',
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        userStatus: user.userStatus,
+        balance: user.balance,
+        rechargeAmount: user.rechargeAmount,
+        consumeAmount: user.consumeAmount,
+        transferAmount: user.transferAmount
+      }
+    });
+  } catch (error) {
+    logger.error('更新用户资料失败:', { 
+      error: error.message, 
+      stack: error.stack,
+      userId: req.user?.id,
+      requestId: req.requestId
+    });
+    return res.status(500).json({ message: '更新失败', error: error.message });
   }
 });
 

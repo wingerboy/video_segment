@@ -99,8 +99,8 @@ app.use(`/${VIRTUAL_BACKGROUNDS_PATH}`, express.static(PHYSICAL_BACKGROUNDS_DIR)
 
 // 为输出视频添加强制下载的设置
 app.use(`/${VIRTUAL_OUTPUT_PATH}`, (req, res, next) => {
-  const fileName = path.basename(req.path);
-  res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+  // 统一使用固定文件名下载
+  res.setHeader('Content-Disposition', `attachment; filename="result.mp4"`);
   next();
 }, express.static(PHYSICAL_OUTPUT_DIR));
 
@@ -150,11 +150,8 @@ app.get('/api/download', (req, res) => {
       return res.status(404).json({ message: '文件不存在' });
     }
     
-    // 获取文件名
-    const fileName = path.basename(physicalPath);
-    
-    // 设置响应头以强制下载
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    // 设置响应头以强制下载，使用统一的文件名
+    res.setHeader('Content-Disposition', `attachment; filename="result.mp4"`);
     res.setHeader('Content-Type', 'application/octet-stream');
     
     // 发送文件

@@ -31,6 +31,12 @@ const ModelUsage = sequelize.define('ModelUsage', {
     defaultValue: 0,
     comment: '模型使用次数'
   },
+  pricePerFrame: {
+    type: DataTypes.DECIMAL(10, 4),
+    allowNull: false,
+    defaultValue: 0.01,
+    comment: '模型每帧的价格'
+  },
   createdAt: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
@@ -59,6 +65,7 @@ const ModelUsage = sequelize.define('ModelUsage', {
             modelName: 'BEN2_Base',
             modelAlias: '李白',
             modelDescription: '准确率高、模型推理时间长',
+            pricePerFrame: 0.01,
             modelUsageCnt: 0
           });
           logger.info('成功添加默认模型: BEN2_Base (李白)');
@@ -112,6 +119,7 @@ sequelize.afterSync(async () => {
         modelName: 'BEN2_Base',
         modelAlias: '李白',
         modelDescription: '准确率高、模型推理时间长',
+        pricePerFrame: 0.01,
         modelUsageCnt: 0
       });
       logger.info('已创建默认模型: BEN2_Base (李白)');

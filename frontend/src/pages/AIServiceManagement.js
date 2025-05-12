@@ -91,7 +91,8 @@ const AIServiceManagement = () => {
   const [modelFormData, setModelFormData] = useState({
     modelName: '',
     modelAlias: '',
-    modelDescription: ''
+    modelDescription: '',
+    pricePerFrame: '0.01'
   });
 
   // 加载数据
@@ -236,7 +237,8 @@ const AIServiceManagement = () => {
     setModelFormData({
       modelName: '',
       modelAlias: '',
-      modelDescription: ''
+      modelDescription: '',
+      pricePerFrame: '0.01'
     });
     setOpenAddModelDialog(true);
   };
@@ -246,7 +248,8 @@ const AIServiceManagement = () => {
     setModelFormData({
       modelName: model.modelName,
       modelAlias: model.modelAlias || '',
-      modelDescription: model.modelDescription || ''
+      modelDescription: model.modelDescription || '',
+      pricePerFrame: model.pricePerFrame?.toString() || '0.01'
     });
     setOpenEditModelDialog(true);
   };
@@ -463,8 +466,9 @@ const AIServiceManagement = () => {
                 <TableHead>
                   <TableRow>
                     <TableCell>模型名称</TableCell>
-                    <TableCell>显示别名</TableCell>
-                    <TableCell>描述</TableCell>
+                    <TableCell>模型别名</TableCell>
+                    <TableCell>模型描述</TableCell>
+                    <TableCell align="right">每帧价格</TableCell>
                     <TableCell align="right">使用次数</TableCell>
                     <TableCell align="center">操作</TableCell>
                   </TableRow>
@@ -472,13 +476,13 @@ const AIServiceManagement = () => {
                 <TableBody>
                   {loading && models.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} align="center">
+                      <TableCell colSpan={6} align="center">
                         <CircularProgress size={24} sx={{ my: 3 }} />
                       </TableCell>
                     </TableRow>
                   ) : models.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} align="center">
+                      <TableCell colSpan={6} align="center">
                         暂无数据
                       </TableCell>
                     </TableRow>
@@ -488,27 +492,26 @@ const AIServiceManagement = () => {
                         <TableCell>{model.modelName}</TableCell>
                         <TableCell>{model.modelAlias || '-'}</TableCell>
                         <TableCell>{model.modelDescription || '-'}</TableCell>
-                        <TableCell align="right">{model.modelUsageCnt}</TableCell>
+                        <TableCell align="right">{model.pricePerFrame || '0.01'}</TableCell>
+                        <TableCell align="right">{model.modelUsageCnt || 0}</TableCell>
                         <TableCell align="center">
-                          <Tooltip title="编辑模型">
-                            <IconButton 
-                              size="small" 
-                              onClick={() => handleEditModelItem(model)}
-                              color="primary"
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="删除模型">
-                            <IconButton 
-                              size="small" 
-                              onClick={() => handleDeleteModel(model.id)}
-                              color="error"
-                              sx={{ ml: 1 }}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
+                          <IconButton 
+                            size="small" 
+                            onClick={() => handleEditModelItem(model)}
+                            color="primary"
+                            title="编辑模型"
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton 
+                            size="small"
+                            onClick={() => handleDeleteModel(model.id)}
+                            color="error"
+                            title="删除模型"
+                            sx={{ ml: 1 }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
                         </TableCell>
                       </TableRow>
                     ))
@@ -650,6 +653,19 @@ const AIServiceManagement = () => {
               rows={2}
               placeholder="例如: 准确率高、模型推理时间长"
               helperText="简要描述模型特点，帮助用户选择"
+            />
+            
+            <TextField
+              fullWidth
+              name="pricePerFrame"
+              label="每帧价格"
+              type="number"
+              step="0.0001"
+              min="0.0001"
+              value={modelFormData.pricePerFrame}
+              onChange={handleModelFormChange}
+              margin="normal"
+              helperText="设置模型处理每帧的价格（元）"
             />
           </Box>
         </DialogContent>

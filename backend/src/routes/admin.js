@@ -597,7 +597,7 @@ router.get('/models', authenticate, isAdmin, async (req, res) => {
  */
 router.post('/models', authenticate, isAdmin, async (req, res) => {
   try {
-    const { modelName, modelAlias, modelDescription } = req.body;
+    const { modelName, modelAlias, modelDescription, pricePerFrame } = req.body;
     
     if (!modelName) {
       return res.status(400).json({ message: '模型名称不能为空' });
@@ -623,6 +623,7 @@ router.post('/models', authenticate, isAdmin, async (req, res) => {
       modelName,
       modelAlias: modelAlias || modelName,
       modelDescription: modelDescription || '',
+      pricePerFrame: pricePerFrame !== undefined ? parseFloat(pricePerFrame) : 0.01,
       modelUsageCnt: 0
     });
     
@@ -659,7 +660,7 @@ router.post('/models', authenticate, isAdmin, async (req, res) => {
 router.put('/models/:modelId', authenticate, isAdmin, async (req, res) => {
   try {
     const { modelId } = req.params;
-    const { modelName, modelAlias, modelDescription } = req.body;
+    const { modelName, modelAlias, modelDescription, pricePerFrame } = req.body;
     
     const model = await ModelUsage.findByPk(modelId);
     if (!model) {
@@ -692,13 +693,15 @@ router.put('/models/:modelId', authenticate, isAdmin, async (req, res) => {
     // 更新其他字段
     if (modelAlias !== undefined) model.modelAlias = modelAlias;
     if (modelDescription !== undefined) model.modelDescription = modelDescription;
+    if (pricePerFrame !== undefined) model.pricePerFrame = parseFloat(pricePerFrame);
     
     await model.save();
     
     logger.info('管理员更新模型成功', {
       requestId: req.requestId,
       adminId: req.user.id,
-      modelId
+      modelId,
+      modelName: model.modelName
     });
     
     res.status(200).json({

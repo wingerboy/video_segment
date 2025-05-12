@@ -154,6 +154,11 @@ export const getAllModels = async () => {
 
 export const addModel = async (modelData) => {
   try {
+    // 确保价格是有效的数字
+    if (modelData.pricePerFrame) {
+      modelData.pricePerFrame = parseFloat(modelData.pricePerFrame);
+    }
+    
     const response = await api.post('/admin/models', modelData);
     return response.data;
   } catch (error) {
@@ -164,6 +169,11 @@ export const addModel = async (modelData) => {
 
 export const updateModel = async (modelId, modelData) => {
   try {
+    // 确保价格是有效的数字
+    if (modelData.pricePerFrame) {
+      modelData.pricePerFrame = parseFloat(modelData.pricePerFrame);
+    }
+    
     const response = await api.put(`/admin/models/${modelId}`, modelData);
     return response.data;
   } catch (error) {
