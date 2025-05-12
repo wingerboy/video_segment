@@ -44,14 +44,16 @@ import {
   CloseCircle as CancelIcon
 } from '@mui/icons-material';
 import { uploadVideo, getAllVideos, getFullUrl } from '../../services/videoService';
-import { createTask, getAvailableModels } from '../../services/taskService';
+import { createTask, getAvailableModels, getFrozenBalance } from '../../services/taskService';
 import { getUserBackgrounds, uploadBackground, getFullUrl as getBackgroundFullUrl } from '../../services/backgroundService';
+import { useAuth } from '../../contexts/AuthContext';
 
 // CreateTask组件
 const CreateTask = () => {
   // 导航和路由
   const navigate = useNavigate();
   const location = useLocation();
+  const { currentUser } = useAuth();
   
   // 步骤控制
   const [activeStep, setActiveStep] = useState(0);
@@ -94,13 +96,41 @@ const CreateTask = () => {
   // 确认对话框
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [dimensionsMatch, setDimensionsMatch] = useState(true);
+  
+  // 费用计算相关
+  const [estimatedCost, setEstimatedCost] = useState(0);
+  const [frozenBalance, setFrozenBalance] = useState(0);
+  const [availableBalance, setAvailableBalance] = useState(0);
+  const [balanceSufficient, setBalanceSufficient] = useState(true);
 
-  // 加载背景库、视频库和可用模型
+  // 加载背景库、视频库和可用模型以及冻结余额
   useEffect(() => {
     fetchBackgrounds();
     fetchVideos();
     fetchModels();
+    fetchFrozenBalance();
   }, []);
+
+  // 获取用户任务冻结的金额
+  const fetchFrozenBalance = async () => {
+    try {
+      const frozen = await getFrozenBalance();
+      setFrozenBalance(frozen);
+      
+      // 计算可用余额
+      const totalBalance = parseFloat(currentUser?.balance || 0);
+      const available = Math.max(0, totalBalance - frozen);
+      setAvailableBalance(available);
+      
+      console.log('余额信息:', {
+        总余额: totalBalance,
+        冻结金额: frozen,
+        可用余额: available
+      });
+    } catch (error) {
+      console.error('获取冻结余额失败:', error);
+    }
+  };
 
   // 获取可用模型列表
   const fetchModels = async () => {
@@ -131,6 +161,62 @@ const CreateTask = () => {
       setModelsLoading(false);
     }
   };
+
+  // 计算预估费用
+  const calculateEstimatedCost = async () => {
+    if (!selectedVideo || !selectedModel) {
+      setEstimatedCost(0);
+      return;
+    }
+    
+    // 获取所选模型信息
+    const model = availableModels.find(m => m.modelAlias === selectedModel);
+    if (!model) {
+      setEstimatedCost(0);
+      return;
+    }
+    
+    // 获取视频帧数和每帧价格
+    const frameCnt = selectedVideo.oriVideoFrameCnt || 0;
+    const pricePerFrame = parseFloat(model.pricePerFrame || 0.01);
+    
+    // 计算预估费用
+    const cost = frameCnt * pricePerFrame;
+    setEstimatedCost(cost);
+    
+    // 刷新冻结余额
+    await fetchFrozenBalance();
+    
+    // 检查余额是否足够
+    const totalBalance = parseFloat(currentUser?.balance || 0);
+    const available = Math.max(0, totalBalance - frozenBalance);
+    setAvailableBalance(available);
+    setBalanceSufficient(available >= cost);
+    
+    console.log('费用计算:', {
+      视频帧数: frameCnt,
+      单价: pricePerFrame,
+      总费用: cost,
+      总余额: totalBalance,
+      冻结金额: frozenBalance,
+      可用余额: available,
+      余额充足: available >= cost
+    });
+  };
+
+  // 当选择视频或模型变化时，重新计算费用
+  useEffect(() => {
+    if (selectedVideo && selectedModel) {
+      calculateEstimatedCost();
+    }
+  }, [selectedVideo, selectedModel]);
+
+  // 当前用户信息变化时，重新获取冻结余额
+  useEffect(() => {
+    if (currentUser) {
+      fetchFrozenBalance();
+    }
+  }, [currentUser]);
 
   // 当视频加载完成时获取视频信息
   useEffect(() => {
@@ -225,7 +311,7 @@ const CreateTask = () => {
   };
 
   // 处理开始任务按钮
-  const handleStartTask = () => {
+  const handleStartTask = async () => {
     if (!videoId) {
       setError('请选择要处理的视频');
       return;
@@ -233,6 +319,15 @@ const CreateTask = () => {
 
     if (!backgroundFromLibrary) {
       setError('请选择背景图片');
+      return;
+    }
+    
+    // 重新计算费用并检查余额
+    await calculateEstimatedCost();
+    
+    // 账户余额不足时不允许创建任务
+    if (!balanceSufficient) {
+      setError('可用余额不足，请充值或等待其他任务完成后再试');
       return;
     }
 
@@ -268,6 +363,15 @@ const CreateTask = () => {
 
   // 确认并创建任务
   const confirmAndCreateTask = async () => {
+    // 最后一次检查余额是否充足
+    await calculateEstimatedCost();
+    
+    if (!balanceSufficient) {
+      setError('可用余额不足，请充值或等待其他任务完成后再试');
+      setShowConfirmDialog(false);
+      return;
+    }
+    
     setShowConfirmDialog(false);
     setLoading(true);
     setError('');
@@ -367,7 +471,7 @@ const CreateTask = () => {
     if (!video) return;
     
     console.log('选择视频:', video);
-    setSelectedVideo(null);
+    setSelectedVideo(video);
     setVideoId(video.id);
     
     // 构建视频URL，使用getFullUrl函数
@@ -395,6 +499,9 @@ const CreateTask = () => {
       frameRate: video.oriVideoFrameRate || video.frameRate || '未知',
       codec: video.oriVideoCodec || video.codec || '未知'
     });
+    
+    // 计算费用
+    calculateEstimatedCost();
     
     setShowVideoDialog(false);
   };
@@ -744,6 +851,7 @@ const CreateTask = () => {
                   </Typography>
                   <Typography variant="body2">时长: {videoInfo.duration}秒</Typography>
                   <Typography variant="body2">大小: {videoInfo.size} MB</Typography>
+                  <Typography variant="body2">总帧数: {selectedVideo?.oriVideoFrameCnt || '未知'}</Typography>
                 </Box>
               )}
             </Paper>
@@ -766,13 +874,20 @@ const CreateTask = () => {
             
             <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
               <Typography variant="subtitle1" gutterBottom>模型信息</Typography>
-              <Typography variant="body2">
-                {selectedModel}
-              </Typography>
+              {selectedModel && (
+                <Box>
+                  <Typography variant="body2">
+                    模型: {selectedModel}
+                  </Typography>
+                  <Typography variant="body2">
+                    单价: {availableModels.find(m => m.modelAlias === selectedModel)?.pricePerFrame || '0.01'} 元/帧
+                  </Typography>
+                </Box>
+              )}
             </Paper>
             
             {!dimensionsMatch && (
-              <Alert severity="warning" sx={{ mt: 2 }}>
+              <Alert severity="warning" sx={{ mt: 2, mb: 2 }}>
                 <Typography variant="body2" fontWeight="bold">
                   警告：视频与背景图片分辨率不匹配！
                 </Typography>
@@ -785,15 +900,36 @@ const CreateTask = () => {
               </Alert>
             )}
             
-            {/* 未来可以在这里添加扣费预估 */}
-            {/*
-            <Paper variant="outlined" sx={{ p: 2 }}>
+            {/* 费用预估 */}
+            <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
               <Typography variant="subtitle1" gutterBottom>费用预估</Typography>
-              <Typography variant="body2">
-                预计费用: ¥XX.XX
-              </Typography>
+              <Box>
+                <Typography variant="body2">
+                  视频总帧数: {selectedVideo?.oriVideoFrameCnt || '0'} 帧
+                </Typography>
+                <Typography variant="body2">
+                  每帧价格: {availableModels.find(m => m.modelAlias === selectedModel)?.pricePerFrame || '0.01'} 元
+                </Typography>
+                <Divider sx={{ my: 1 }} />
+                <Typography variant="body1" fontWeight="bold" color={balanceSufficient ? 'success.main' : 'error.main'}>
+                  预计费用: {estimatedCost.toFixed(2)} 元
+                </Typography>
+                <Typography variant="body2">
+                  账户总余额: {parseFloat(currentUser?.balance || 0).toFixed(2)} 元
+                </Typography>
+                <Typography variant="body2">
+                  已冻结金额: {frozenBalance.toFixed(2)} 元
+                </Typography>
+                <Typography variant="body2" fontWeight="medium" color={balanceSufficient ? 'success.main' : 'error.main'}>
+                  可用余额: {availableBalance.toFixed(2)} 元
+                </Typography>
+                {!balanceSufficient && (
+                  <Alert severity="error" sx={{ mt: 1 }}>
+                    可用余额不足，请充值或等待其他任务完成后再试
+                  </Alert>
+                )}
+              </Box>
             </Paper>
-            */}
           </Box>
         </DialogContent>
         <DialogActions>
@@ -802,9 +938,9 @@ const CreateTask = () => {
             variant="contained" 
             color="primary"
             onClick={confirmAndCreateTask}
-            disabled={loading}
+            disabled={loading || !balanceSufficient}
           >
-            确认创建
+            {loading ? '处理中...' : (balanceSufficient ? '确认创建' : '余额不足')}
           </Button>
         </DialogActions>
       </Dialog>

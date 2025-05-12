@@ -145,6 +145,20 @@ export const getAvailableModels = async () => {
   }
 };
 
+/**
+ * 获取用户任务冻结金额
+ * @returns {Promise<number>} 冻结金额
+ */
+export const getFrozenBalance = async () => {
+  try {
+    const response = await api.get('/tasks/user/frozen-balance');
+    return parseFloat(response.data.frozenBalance || 0);
+  } catch (error) {
+    console.error('获取冻结金额失败:', error);
+    return 0; // 如果请求失败，默认返回0
+  }
+};
+
 export default {
   createTask,
   getTaskById,
@@ -153,5 +167,6 @@ export default {
   cancelTask,
   getModelUsageStats,
   getInterfaceUsageStats,
-  getAvailableModels
+  getAvailableModels,
+  getFrozenBalance
 }; 

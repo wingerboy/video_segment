@@ -722,6 +722,19 @@ const AIServiceManagement = () => {
                 placeholder="例如: 准确率高、模型推理时间长"
                 helperText="简要描述模型特点，帮助用户选择"
               />
+              
+              <TextField
+                fullWidth
+                name="pricePerFrame"
+                label="每帧价格"
+                type="number"
+                step="0.0001"
+                min="0.0001"
+                value={modelFormData.pricePerFrame}
+                onChange={handleModelFormChange}
+                margin="normal"
+                helperText="设置模型处理每帧的价格（元）"
+              />
             </Box>
           )}
         </DialogContent>
