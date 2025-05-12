@@ -34,6 +34,7 @@ import {
 } from '@mui/icons-material';
 import { getAllTasks, cancelTask } from '../../services/taskService';
 import { getFullUrl } from '../../services/videoService';
+import { API_URL } from '../../config';
 
 // 状态颜色映射
 const statusColors = {
@@ -361,9 +362,17 @@ const TaskList = () => {
   const handleDownloadResult = (outputPath) => {
     if (!outputPath) return;
     
-    const fullUrl = getFullUrl(outputPath);
-    console.log('下载视频结果:', fullUrl);
-    window.open(fullUrl, '_blank');
+    // 创建下载链接
+    const downloadUrl = `${API_URL}/api/download?path=${encodeURIComponent(outputPath)}`;
+    console.log('下载链接:', downloadUrl);
+    
+    // 创建下载链接并触发下载
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.target = '_blank'; // 这样如果下载失败，至少会在新标签页打开
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // 显示空状态

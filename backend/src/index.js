@@ -96,7 +96,13 @@ ensureDir(PHYSICAL_OUTPUT_DIR);
 // 配置静态文件服务
 app.use(`/${VIRTUAL_VIDEOS_PATH}`, express.static(PHYSICAL_VIDEOS_DIR));
 app.use(`/${VIRTUAL_BACKGROUNDS_PATH}`, express.static(PHYSICAL_BACKGROUNDS_DIR));
-app.use(`/${VIRTUAL_OUTPUT_PATH}`, express.static(PHYSICAL_OUTPUT_DIR));
+
+// 为输出视频添加强制下载的设置
+app.use(`/${VIRTUAL_OUTPUT_PATH}`, (req, res, next) => {
+  const fileName = path.basename(req.path);
+  res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+  next();
+}, express.static(PHYSICAL_OUTPUT_DIR));
 
 logger.info('静态文件服务配置完成', {
   videoMapping: `/${VIRTUAL_VIDEOS_PATH} => ${PHYSICAL_VIDEOS_DIR}`,
@@ -115,6 +121,48 @@ app.use('/api/admin', adminRoutes);
 // Default route
 app.get('/', (req, res) => {
   res.send('Video Segmentation API is running');
+});
+
+// 添加文件下载API
+app.get('/api/download', (req, res) => {
+  try {
+    const filePath = req.query.path;
+    if (!filePath) {
+      return res.status(400).json({ message: '缺少文件路径参数' });
+    }
+    
+    // 解析文件路径
+    let physicalPath = '';
+    if (filePath.includes('/output/') || filePath.includes('/root/gpufree-share/videos/output/')) {
+      // 处理输出视频路径
+      const fileName = path.basename(filePath);
+      physicalPath = path.join(PHYSICAL_OUTPUT_DIR, fileName);
+    } else if (filePath.includes('/videos/') || filePath.includes('/originvideo/')) {
+      // 处理原始视频路径
+      const fileName = path.basename(filePath);
+      physicalPath = path.join(PHYSICAL_VIDEOS_DIR, fileName);
+    } else {
+      return res.status(400).json({ message: '不支持的文件类型' });
+    }
+    
+    // 检查文件是否存在
+    if (!fs.existsSync(physicalPath)) {
+      return res.status(404).json({ message: '文件不存在' });
+    }
+    
+    // 获取文件名
+    const fileName = path.basename(physicalPath);
+    
+    // 设置响应头以强制下载
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    
+    // 发送文件
+    res.sendFile(physicalPath);
+  } catch (error) {
+    logger.error('文件下载错误:', { error: error.message, stack: error.stack });
+    res.status(500).json({ message: '文件下载失败', error: error.message });
+  }
 });
 
 // 全局错误处理中间件（在所有路由之后）
