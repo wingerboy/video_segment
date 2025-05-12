@@ -325,13 +325,8 @@ const CreateTask = () => {
     // 重新计算费用并检查余额
     await calculateEstimatedCost();
     
-    // 账户余额不足时不允许创建任务
-    if (!balanceSufficient) {
-      setError('可用余额不足，请充值或等待其他任务完成后再试');
-      return;
-    }
-
-    // 检查视频和背景尺寸是否匹配
+    // 不论余额是否充足，都检查尺寸并打开确认对话框
+    // 余额不足的情况会在确认对话框中显示
     checkDimensions();
     
     // 打开确认对话框
@@ -366,10 +361,9 @@ const CreateTask = () => {
     // 最后一次检查余额是否充足
     await calculateEstimatedCost();
     
+    // 余额不足时不尝试创建任务，但保持对话框打开展示余额不足信息
     if (!balanceSufficient) {
-      setError('可用余额不足，请充值或等待其他任务完成后再试');
-      setShowConfirmDialog(false);
-      return;
+      return; // 保持对话框打开，让用户能看到余额不足警告
     }
     
     setShowConfirmDialog(false);
@@ -901,7 +895,15 @@ const CreateTask = () => {
             )}
             
             {/* 费用预估 */}
-            <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+            <Paper 
+              variant="outlined" 
+              sx={{ 
+                p: 2, 
+                mb: 2, 
+                border: !balanceSufficient ? '1px solid #f44336' : undefined,
+                bgcolor: !balanceSufficient ? 'rgba(244, 67, 54, 0.05)' : undefined 
+              }}
+            >
               <Typography variant="subtitle1" gutterBottom>费用预估</Typography>
               <Box>
                 <Typography variant="body2">
@@ -924,7 +926,17 @@ const CreateTask = () => {
                   可用余额: {availableBalance.toFixed(2)} 元
                 </Typography>
                 {!balanceSufficient && (
-                  <Alert severity="error" sx={{ mt: 1 }}>
+                  <Alert 
+                    severity="error" 
+                    sx={{ 
+                      mt: 1,
+                      fontWeight: 'bold',
+                      '& .MuiAlert-message': {
+                        fontWeight: 'bold'
+                      }
+                    }}
+                    variant="filled"
+                  >
                     可用余额不足，请充值或等待其他任务完成后再试
                   </Alert>
                 )}

@@ -62,6 +62,82 @@ router.get('/user', authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @api {get} /api/tasks/user/frozen-balance 获取用户已冻结余额
+ * @apiDescription 获取用户当前进行中任务已冻结的余额总和
+ * @apiGroup Tasks
+ */
+router.get('/user/frozen-balance', authenticate, async (req, res) => {
+  try {
+    const userEmail = req.user.email;
+    
+    // 获取用户所有处于进行中状态的任务
+    const runningTasks = await Task.findAll({
+      where: {
+        email: userEmail,
+        taskStatus: ['waiting', 'processing'] // 只考虑等待中和处理中的任务
+      },
+      include: [{
+        model: ModelUsage,
+        as: 'model',
+        attributes: ['pricePerFrame']
+      }],
+      include: [{
+        model: Video,
+        as: 'video',
+        attributes: ['oriVideoFrameCnt']
+      }]
+    });
+    
+    // 计算所有进行中任务的费用总和
+    let frozenBalance = 0;
+    
+    for (const task of runningTasks) {
+      // 获取视频帧数
+      const frameCnt = task.video?.oriVideoFrameCnt || 0;
+      
+      // 获取模型单价
+      const modelUsage = await ModelUsage.findOne({
+        where: { modelAlias: task.modelAlias }
+      });
+      const pricePerFrame = modelUsage?.pricePerFrame || 0.01;
+      
+      // 计算任务费用并累加
+      const taskCost = frameCnt * pricePerFrame;
+      frozenBalance += taskCost;
+      
+      logger.debug('计算任务冻结金额', {
+        taskId: task.id,
+        frameCnt,
+        pricePerFrame,
+        taskCost
+      });
+    }
+    
+    logger.info('获取用户冻结余额', {
+      userEmail,
+      frozenBalance,
+      runningTaskCount: runningTasks.length,
+      requestId: req.requestId
+    });
+    
+    res.json({ frozenBalance });
+    
+  } catch (error) {
+    logger.error('获取冻结余额失败', {
+      error: error.message,
+      stack: error.stack,
+      userEmail: req.user?.email,
+      requestId: req.requestId
+    });
+    
+    res.status(500).json({
+      message: '获取冻结余额失败',
+      error: error.message
+    });
+  }
+});
+
 // 获取特定任务详情
 router.get('/user/:id', authenticate, async (req, res) => {
   try {
@@ -516,67 +592,6 @@ router.post('/interface/heartbeat', async (req, res) => {
       stack: error.stack
     });
     res.status(500).json({ success: false, message: '更新心跳失败', error: error.message });
-  }
-});
-
-/**
- * @api {get} /api/tasks/user/frozen-balance 获取用户已冻结余额
- * @apiDescription 获取用户当前进行中任务已冻结的余额总和
- * @apiGroup Tasks
- */
-router.get('/user/frozen-balance', authenticate, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    
-    // 获取用户所有处于进行中状态的任务
-    const runningTasks = await Task.findAll({
-      where: {
-        userId,
-        status: ['queued', 'processing'] // 只考虑排队中和处理中的任务
-      },
-      include: [{
-        model: ModelUsage,
-        as: 'model',
-        attributes: ['pricePerFrame']
-      }]
-    });
-    
-    // 计算所有进行中任务的费用总和
-    let frozenBalance = 0;
-    
-    for (const task of runningTasks) {
-      // 获取视频帧数
-      const frameCnt = task.oriVideoFrameCnt || 0;
-      
-      // 获取模型单价
-      const pricePerFrame = task.model?.pricePerFrame || 0.01;
-      
-      // 计算任务费用并累加
-      const taskCost = frameCnt * pricePerFrame;
-      frozenBalance += taskCost;
-    }
-    
-    logger.info('获取用户冻结余额', {
-      userId,
-      frozenBalance,
-      runningTaskCount: runningTasks.length,
-      requestId: req.requestId
-    });
-    
-    res.json({ frozenBalance });
-    
-  } catch (error) {
-    logger.error('获取冻结余额失败', {
-      error: error.message,
-      stack: error.stack,
-      userId: req.user?.id,
-      requestId: req.requestId
-    });
-    
-    res.status(500).json({
-      message: '获取冻结余额失败',
-      error: error.message
-    });
   }
 });
 
