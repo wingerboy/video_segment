@@ -1,4 +1,4 @@
-const { sequelize } = require('../models/db');
+const sequelize = require('../models/db');
 const User = require('../models/User');
 const AccountTransaction = require('../models/AccountTransaction');
 const Task = require('../models/Task');
@@ -268,7 +268,7 @@ const refundAccount = async (email, amount, taskId = null, interfaceAddress = nu
  * @param {string} description - 交易描述
  * @returns {Object} 包含交易记录和更新后的用户信息
  */
-const transferAccount = async (fromEmail, toEmail, amount, interfaceAddress = null, description = '账户转账') => {
+const transferAccount = async (fromEmail, toEmail, amount, description = '账户转账') => {
   // 验证参数
   if (!fromEmail || !toEmail || !amount || amount <= 0) {
     throw new Error('无效的转账参数');
@@ -338,7 +338,6 @@ const transferAccount = async (fromEmail, toEmail, amount, interfaceAddress = nu
     // 创建转出交易记录
     const fromTransaction = await AccountTransaction.create({
       email: fromEmail,
-      interfaceAddress,
       transactionType: 'transfer',
       target: toEmail,
       amount: transferAmount,
@@ -349,7 +348,6 @@ const transferAccount = async (fromEmail, toEmail, amount, interfaceAddress = nu
     // 创建转入交易记录
     const toTransaction = await AccountTransaction.create({
       email: toEmail,
-      interfaceAddress,
       transactionType: 'transfer',
       target: fromEmail,
       amount: transferAmount,

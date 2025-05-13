@@ -151,8 +151,13 @@ const Navbar = () => {
                     个人资料
                   </MenuItem>
                   <MenuItem component={Link} to="/account-transactions" onClick={handleClose}>
-                    账户交易流水
+                    账户流水
                   </MenuItem>
+                  {currentUser.role === 'agent' && (
+                    <MenuItem component={Link} to="/agent-transfer" onClick={handleClose}>
+                      代理划扣
+                    </MenuItem>
+                  )}
                   {currentUser.role === 'admin' && (
                     [
                       <MenuItem key="user-management" component={Link} to="/user-management" onClick={handleClose}>
@@ -166,7 +171,7 @@ const Navbar = () => {
                       </MenuItem>
                     ]
                   )}
-                  {isDevelopment && currentUser.role !== 'admin' && (
+                  {isDevelopment && currentUser.role !== 'admin' && currentUser.email === 'wingerliu2019@gmail.com' && (
                     [
                       <MenuItem key="set-admin" onClick={handleSetAdmin}>
                         设为管理员 (开发)

@@ -138,11 +138,75 @@ const getUserTransactions = async (userId, type = null) => {
   }
 };
 
+/**
+ * 代理商查找用户
+ * @param {string} keyword - 搜索关键词，用于搜索用户名或邮箱
+ * @returns {Promise<Array>} 匹配的用户列表
+ */
+const searchUsers = async (keyword) => {
+  try {
+    const token = localStorage.getItem(AUTH_CONFIG.TOKEN_KEY);
+    setAuthToken(token);
+
+    const response = await axios.get(`${API_URL}/account/search-users?keyword=${encodeURIComponent(keyword)}`);
+    return response.data.data;
+  } catch (error) {
+    console.error('查找用户失败:', error);
+    throw error.response?.data || { message: '查找用户失败' };
+  }
+};
+
+/**
+ * 代理商获取划扣记录
+ * @returns {Promise<Array>} 划扣记录列表
+ */
+const getAgentTransfers = async () => {
+  try {
+    const token = localStorage.getItem(AUTH_CONFIG.TOKEN_KEY);
+    setAuthToken(token);
+
+    const response = await axios.get(`${API_URL}/account/agent-transfers`);
+    return response.data.data;
+  } catch (error) {
+    console.error('获取划扣记录失败:', error);
+    throw error.response?.data || { message: '获取划扣记录失败' };
+  }
+};
+
+/**
+ * 向其他用户账户转账（或代理划扣）
+ * @param {string} toEmail - 接收方用户邮箱
+ * @param {number} amount - 转账金额
+ * @param {string} [description] - 交易描述
+ * @returns {Promise<Object>} 转账结果
+ */
+const transferAccount = async (toEmail, amount, description = null) => {
+  try {
+    const token = localStorage.getItem(AUTH_CONFIG.TOKEN_KEY);
+    setAuthToken(token);
+
+    const payload = {
+      toEmail,
+      amount: parseFloat(amount),
+      description
+    };
+
+    const response = await axios.post(`${API_URL}/account/transfer`, payload);
+    return response.data.data;
+  } catch (error) {
+    console.error('账户转账失败:', error);
+    throw error.response?.data || { message: '账户转账失败' };
+  }
+};
+
 export {
   getTransactions,
   rechargeAccount,
   consumeAccount,
   refundAccount,
   getUserTransactions,
+  searchUsers,
+  getAgentTransfers,
+  transferAccount,
   setAuthToken
 };

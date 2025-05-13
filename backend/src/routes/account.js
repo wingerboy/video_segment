@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { rechargeAccount, consumeAccount, refundAccount, transferAccount, getUserTransactions } = require('../services/accountService');
-const { authenticate, isAdmin } = require('../middleware/auth');
+const { authenticate, isAdmin, isAgent } = require('../middleware/auth');
+const { User } = require('../models');
+const { Op } = require('sequelize');
 
 /**
  * @api {get} /account/transactions 获取用户交易记录
@@ -176,7 +178,7 @@ router.post('/refund', authenticate, isAdmin, async (req, res) => {
 router.post('/transfer', authenticate, async (req, res) => {
   try {
     const fromEmail = req.user.email;
-    const { toEmail, amount, interfaceAddress, description } = req.body;
+    const { toEmail, amount, description } = req.body;
     
     if (!toEmail || !amount || isNaN(amount) || parseFloat(amount) <= 0) {
       return res.status(400).json({
@@ -189,7 +191,6 @@ router.post('/transfer', authenticate, async (req, res) => {
       fromEmail,
       toEmail,
       parseFloat(amount),
-      interfaceAddress,
       description
     );
     
@@ -237,6 +238,81 @@ router.get('/admin/transactions/:email', authenticate, isAdmin, async (req, res)
     res.status(500).json({
       success: false,
       message: error.message || '获取用户交易记录失败'
+    });
+  }
+});
+
+/**
+ * @api {get} /account/search-users 代理商查找用户
+ * @apiName SearchUsers
+ * @apiGroup Account
+ * @apiParam {String} keyword 关键词，用于搜索用户名或邮箱
+ * @apiSuccess {Array} users 用户列表
+ */
+router.get('/search-users', authenticate, isAgent, async (req, res) => {
+  try {
+    const { keyword } = req.query;
+    
+    if (!keyword || keyword.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: '请输入至少2个字符的搜索关键词'
+      });
+    }
+    
+    // 查找普通用户（role='user'）且状态为活跃(userStatus='active')的用户
+    const users = await User.findAll({
+      where: {
+        [Op.and]: [
+          { role: 'user' },
+          { userStatus: 'active' },
+          {
+            [Op.or]: [
+              { username: { [Op.like]: `%${keyword}%` } },
+              { email: { [Op.like]: `%${keyword}%` } }
+            ]
+          }
+        ]
+      },
+      attributes: ['id', 'username', 'email', 'balance', 'createdAt'],
+      limit: 10 // 限制返回数量
+    });
+    
+    res.status(200).json({
+      success: true,
+      data: users
+    });
+  } catch (error) {
+    console.error('查找用户失败:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || '查找用户失败'
+    });
+  }
+});
+
+/**
+ * @api {get} /account/agent-transfers 代理商获取划扣记录
+ * @apiName GetAgentTransfers
+ * @apiGroup Account
+ * @apiSuccess {Array} transactions 划扣记录列表
+ */
+router.get('/agent-transfers', authenticate, isAgent, async (req, res) => {
+  try {
+    const email = req.user.email;
+    
+    // 只获取转账类型(transactionType='transfer')且由当前代理商发起的交易记录
+    const transactions = await getUserTransactions(email, 'transfer');
+    
+    res.status(200).json({
+      success: true,
+      data: transactions
+    });
+  } catch (error) {
+    console.error('获取划扣记录失败:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || '获取划扣记录失败'
     });
   }
 });
