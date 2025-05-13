@@ -114,7 +114,7 @@ class TaskScheduler {
       const taskData = {
         taskId: String(task.id),  // 转换为字符串类型，适配Python的str类型
         videoPath: task.oriVideoPath,
-        foregroundPath: task.foregroundPath || null,  // Optional[str] = None，使用null
+        foregroundPath: task.foreVideoPath || null,  // Optional[str] = None，使用null
         backgroundPath: task.backgroundPath || null,  // Optional[str] = None，使用null
         modelName: task.modelName,
         modelAlias: task.modelAlias || null,  // Optional[str] = None，使用null
