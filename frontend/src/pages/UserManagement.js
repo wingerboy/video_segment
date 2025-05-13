@@ -36,6 +36,7 @@ import {
   Search as SearchIcon 
 } from '@mui/icons-material';
 import { getAllUsers, updateUserStatus, updateUserRole, rechargeAccount } from '../services/adminService';
+import { useAuth, UserEvents } from '../contexts/AuthContext';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -61,6 +62,9 @@ const UserManagement = () => {
     amount: '',
     description: ''
   });
+
+  // 添加AuthContext
+  const { getCurrentUser } = useAuth();
 
   // 加载用户数据
   useEffect(() => {
@@ -171,7 +175,22 @@ const UserManagement = () => {
       
       // 更新用户状态
       if (editFormData.userStatus !== selectedUser.userStatus) {
-        await updateUserStatus(selectedUser.id, editFormData.userStatus);
+        const response = await updateUserStatus(selectedUser.id, editFormData.userStatus);
+        
+        // 如果用户状态被更新为禁用，发出用户状态变更事件
+        if (editFormData.userStatus === 'banned') {
+          // 向全局事件总线发送用户状态更新事件
+          UserEvents.emit('USER_STATUS_CHANGED', {
+            userId: selectedUser.id,
+            status: 'banned',
+            source: 'admin_action'
+          });
+          
+          console.log('用户已被禁用，发出状态变更事件:', {
+            userId: selectedUser.id,
+            status: 'banned'
+          });
+        }
       }
       
       // 刷新数据
@@ -195,7 +214,7 @@ const UserManagement = () => {
         return;
       }
       
-      await rechargeAccount(
+      const response = await rechargeAccount(
         selectedUser.id, 
         amount, 
         null, 
@@ -205,6 +224,22 @@ const UserManagement = () => {
       // 刷新数据
       await fetchUsers();
       setOpenRechargeDialog(false);
+      
+      // 在管理员充值成功后，发出余额更新事件
+      if (response && response.user) {
+        // 通知其他组件余额已更新
+        UserEvents.emit(UserEvents.BALANCE_UPDATED, {
+          userId: selectedUser.id,
+          newBalance: response.user.balance,
+          source: 'admin_recharge'
+        });
+        
+        console.log('发出余额更新事件:', {
+          userId: selectedUser.id,
+          newBalance: response.user.balance
+        });
+      }
+      
     } catch (error) {
       setError('充值失败');
       console.error(error);

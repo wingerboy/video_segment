@@ -449,7 +449,8 @@ router.get('/models', authenticate, async (req, res) => {
     res.status(200).json({
       models: models.map(model => ({
         modelAlias: model.modelAlias || model.modelName,
-        modelDescription: model.modelDescription || ''
+        modelDescription: model.modelDescription || '',
+        pricePerFrame: model.pricePerFrame || 0.01
       }))
     });
   } catch (error) {

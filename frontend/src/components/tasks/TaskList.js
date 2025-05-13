@@ -362,8 +362,8 @@ const TaskList = () => {
   const handleDownloadResult = (outputPath) => {
     if (!outputPath) return;
     
-    // 创建下载链接
-    const downloadUrl = `${API_URL}/api/download?path=${encodeURIComponent(outputPath)}`;
+    // 创建下载链接 - 修复URL路径，避免/api前缀重复
+    const downloadUrl = `${API_URL}/download?path=${encodeURIComponent(outputPath)}`;
     console.log('下载链接:', downloadUrl);
     
     // 创建下载链接并触发下载

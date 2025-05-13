@@ -46,14 +46,14 @@ import {
 import { uploadVideo, getAllVideos, getFullUrl } from '../../services/videoService';
 import { createTask, getAvailableModels, getFrozenBalance } from '../../services/taskService';
 import { getUserBackgrounds, uploadBackground, getFullUrl as getBackgroundFullUrl } from '../../services/backgroundService';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth, UserEvents } from '../../contexts/AuthContext';
 
 // CreateTask组件
 const CreateTask = () => {
   // 导航和路由
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser } = useAuth();
+  const { currentUser, getCurrentUser } = useAuth();
   
   // 步骤控制
   const [activeStep, setActiveStep] = useState(0);
@@ -109,7 +109,28 @@ const CreateTask = () => {
     fetchVideos();
     fetchModels();
     fetchFrozenBalance();
+    
+    // 组件挂载时注册余额更新监听器
+    const unsubscribe = UserEvents.on(UserEvents.BALANCE_UPDATED, handleBalanceUpdated);
+    
+    // 组件卸载时取消监听
+    return () => {
+      unsubscribe();
+    };
   }, []);
+
+  // 余额更新事件处理函数
+  const handleBalanceUpdated = (data) => {
+    console.log('收到余额更新事件:', data);
+    
+    // 获取最新用户信息
+    getCurrentUser().then(() => {
+      // 重新计算费用和可用余额
+      calculateEstimatedCost();
+    }).catch(error => {
+      console.error('更新用户信息失败:', error);
+    });
+  };
 
   // 获取用户任务冻结的金额
   const fetchFrozenBalance = async () => {

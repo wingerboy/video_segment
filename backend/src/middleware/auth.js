@@ -37,6 +37,19 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({ message: '认证失败: 用户不存在' });
     }
     
+    // 检查用户状态是否为禁用
+    if (user.userStatus === 'banned') {
+      logger.auth('认证失败: 用户已禁用', { 
+        requestId: req.requestId,
+        userId: user.id,
+        userEmail: user.email
+      });
+      return res.status(403).json({ 
+        message: '用户已被禁用',
+        code: 'USER_BANNED'  // 添加特殊状态码方便前端识别
+      });
+    }
+    
     // 将用户信息添加到请求对象中
     req.user = user;
     

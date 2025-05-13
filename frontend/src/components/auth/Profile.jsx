@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import {
   Container,
   Paper,
@@ -10,12 +10,12 @@ import {
   CircularProgress,
   Alert
 } from '@mui/material';
-import { AuthContext } from '../../contexts/AuthContext';
+import { AuthContext, UserEvents } from '../../contexts/AuthContext';
 import axios from 'axios';
 import { API_URL } from '../../config';
 
 const Profile = () => {
-  const { currentUser, logout, updateProfile } = useContext(AuthContext);
+  const { currentUser, logout, updateProfile, getCurrentUser } = useContext(AuthContext);
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({
     username: currentUser?.username || '',
@@ -27,6 +27,40 @@ const Profile = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // 组件挂载时刷新用户信息
+  useEffect(() => {
+    // 刷新用户信息
+    getCurrentUser();
+    
+    // 注册用户状态更新事件监听器
+    const balanceSubscription = UserEvents.on(UserEvents.BALANCE_UPDATED, handleUserUpdated);
+    const profileSubscription = UserEvents.on(UserEvents.PROFILE_UPDATED, handleUserUpdated);
+    
+    // 组件卸载时取消事件监听
+    return () => {
+      balanceSubscription();
+      profileSubscription();
+    };
+  }, []);
+  
+  // 用户信息更新事件处理函数
+  const handleUserUpdated = (data) => {
+    console.log('Profile组件收到用户更新事件:', data);
+    // 获取最新用户信息
+    getCurrentUser();
+  };
+  
+  // 当用户数据更新时更新表单数据
+  useEffect(() => {
+    if (currentUser) {
+      setFormData({
+        username: currentUser.username || '',
+        email: currentUser.email || '',
+        balance: currentUser.balance || 0
+      });
+    }
+  }, [currentUser]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
