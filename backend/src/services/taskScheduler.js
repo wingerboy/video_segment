@@ -177,7 +177,7 @@ class TaskScheduler {
         // 4. 更新任务状态为processing
         task.taskStatus = 'processing';
         task.taskProgress = 0;
-        task.foregroundVideoPath = response.data.maskVideoPath;
+        task.foreVideoPath = response.data.maskVideoPath;
         task.outputVideoPath = response.data.compositeVideoPath;
         task.interfaceAddress = idleInterface.interfaceAddress;
         await task.save();
