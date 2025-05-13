@@ -150,6 +150,9 @@ const Navbar = () => {
                   <MenuItem component={Link} to="/profile" onClick={handleClose}>
                     个人资料
                   </MenuItem>
+                  <MenuItem component={Link} to="/account-transactions" onClick={handleClose}>
+                    账户交易流水
+                  </MenuItem>
                   {currentUser.role === 'admin' && (
                     [
                       <MenuItem key="user-management" component={Link} to="/user-management" onClick={handleClose}>

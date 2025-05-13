@@ -1,4 +1,4 @@
-const { Task, InterfaceUsage } = require('../models');
+const { Task, InterfaceUsage, ModelUsage } = require('../models');
 const axios = require('axios');
 const config = require('../config');
 const logger = require('../utils/logger');
@@ -103,6 +103,13 @@ class TaskScheduler {
         interfaceAddress: idleInterface.interfaceAddress 
       });
       
+      // 1.1 记录接口请求次数 +1
+      await InterfaceUsage.incrementRequest(idleInterface.interfaceAddress);
+      logger.debug(`接口 ${idleInterface.interfaceAddress} 请求次数 +1`, { 
+        taskId: task.id, 
+        interfaceAddress: idleInterface.interfaceAddress 
+      });
+      
       // 2. 准备任务数据
       const taskData = {
         taskId: String(task.id),  // 转换为字符串类型，适配Python的str类型
@@ -143,10 +150,31 @@ class TaskScheduler {
           interfaceAddress: idleInterface.interfaceAddress 
         });
         
-        // 4. 更新接口状态为busy
-        await InterfaceUsage.setInterfaceBusy(idleInterface.interfaceAddress, task.id);
+        // 3.1 记录接口响应次数 +1
+        await InterfaceUsage.incrementResponse(idleInterface.interfaceAddress, true);
+        logger.debug(`接口 ${idleInterface.interfaceAddress} 响应次数 +1, 成功次数 +1`, { 
+          taskId: task.id, 
+          interfaceAddress: idleInterface.interfaceAddress 
+        });
         
-        // 5. 更新任务状态为processing
+        // 3.2 更新接口的当前任务消息
+        await InterfaceUsage.setInterfaceBusy(
+          idleInterface.interfaceAddress, 
+          task.id, 
+          response.data.message || '任务处理中'
+        );
+        
+        // 3.3 如果任务关联了模型，记录模型使用次数 +1
+        if (task.modelName) {
+          await ModelUsage.incrementUsage(task.modelName);
+          logger.debug(`模型 ${task.modelName} 使用次数 +1`, { 
+            taskId: task.id, 
+            modelName: task.modelName,
+            modelAlias: task.modelAlias || null
+          });
+        }
+        
+        // 4. 更新任务状态为processing
         task.taskStatus = 'processing';
         task.taskProgress = 0;
         task.foregroundVideoPath = response.data.maskVideoPath;
@@ -159,6 +187,13 @@ class TaskScheduler {
           interfaceAddress: idleInterface.interfaceAddress 
         });
       } else {
+        // 记录接口响应，但不计为成功
+        await InterfaceUsage.incrementResponse(idleInterface.interfaceAddress, false);
+        logger.debug(`接口 ${idleInterface.interfaceAddress} 响应次数 +1, 请求被拒绝`, { 
+          taskId: task.id, 
+          interfaceAddress: idleInterface.interfaceAddress 
+        });
+        
         throw new Error(response.data?.message || '接口服务拒绝任务');
       }
     } catch (error) {
