@@ -6,6 +6,7 @@ const { authenticate } = require('../middleware/auth');
 const { Task, Video, Background, ModelUsage, InterfaceUsage, sequelize } = require('../models');
 const config = require('../config');
 const logger = require('../utils/logger');
+const { consumeAccount } = require('../services/accountService');
 
 // 加载环境变量
 dotenv.config();
@@ -165,7 +166,7 @@ router.get('/user/:id', authenticate, async (req, res) => {
 
 // 创建新任务
 router.post('/create', authenticate, async (req, res) => {
-  const { videoId, backgroundId, modelName, modelAlias, interfaceAddress } = req.body;
+  const { videoId, backgroundId, modelName, modelAlias, interfaceAddress = '', taskCost = 0 } = req.body;
   
   if (!videoId) {
     return res.status(400).json({ message: '缺少必要参数: videoId' });
@@ -235,7 +236,7 @@ router.post('/create', authenticate, async (req, res) => {
     // 创建任务
     const task = await Task.create({
       email: req.user.email,
-      interfaceAddress: '',
+      interfaceAddress: interfaceAddress || '',
       oriVideoId: videoId,
       backgroundId: backgroundId,
       oriVideoPath: video.oriVideoPath,
@@ -244,7 +245,8 @@ router.post('/create', authenticate, async (req, res) => {
       outputVideoPath: '',
       taskStatus: 'waiting',
       modelName: modelNameToUse,
-      modelAlias: modelAliasToUse // 设置模型别名
+      modelAlias: modelAliasToUse,
+      taskCost: parseFloat(taskCost)
     });
     
     res.status(201).json({ 
@@ -489,6 +491,8 @@ router.post('/callback', async (req, res) => {
       return res.status(404).json({ success: false, message: '任务不存在' });
     }
     
+    const originalStatus = task.taskStatus;
+    
     // 2. 更新任务状态
     let shouldReleaseInterface = false;
     
@@ -502,6 +506,11 @@ router.post('/callback', async (req, res) => {
         task.taskStatus = 'completed';
         task.taskProgress = 100;
         task.taskUpdateTime = new Date();
+        // 计算任务时长（秒）
+        if (task.taskStartTime) {
+          const durationSeconds = Math.floor((Date.now() - new Date(task.taskStartTime).getTime()) / 1000);
+          task.taskDuration = durationSeconds;
+        }
         shouldReleaseInterface = true;
         break;
       
@@ -521,6 +530,26 @@ router.post('/callback', async (req, res) => {
     }
     
     await task.save();
+    
+    // 3. 如果首次完成，执行扣费
+    if (status.toLowerCase() === 'completed' && originalStatus !== 'completed') {
+      try {
+        await consumeAccount(task.email, task.taskCost, task.id, task.interfaceAddress, '视频处理服务费用');
+        logger.info('任务完成，已扣费', {
+          requestId: req.requestId,
+          taskId,
+          cost: task.taskCost,
+          email: task.email
+        });
+      } catch (consumeErr) {
+        logger.error('扣费失败', {
+          requestId: req.requestId,
+          taskId,
+          error: consumeErr.message,
+          stack: consumeErr.stack
+        });
+      }
+    }
     
     logger.info(`任务 #${taskId} 状态更新为: ${task.taskStatus}, 进度: ${task.taskProgress}%, 消息: ${message || '无'}`, {
       requestId: req.requestId,

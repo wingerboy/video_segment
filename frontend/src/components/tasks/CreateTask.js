@@ -400,7 +400,8 @@ const CreateTask = () => {
       // 准备提交的数据
       let taskData = {
         videoId: videoId, // 必须有
-        modelAlias: selectedModel // 使用selectedModel作为modelAlias
+        modelAlias: selectedModel, // 模型别名
+        taskCost: parseFloat(estimatedCost.toFixed(2)) // 预估费用
       };
 
       // 如果有背景，添加背景ID

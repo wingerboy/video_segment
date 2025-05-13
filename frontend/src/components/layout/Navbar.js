@@ -171,7 +171,7 @@ const Navbar = () => {
                       </MenuItem>
                     ]
                   )}
-                  {isDevelopment && currentUser.role !== 'admin' && currentUser.email === 'wingerliu2019@gmail.com' && (
+                  {isDevelopment && currentUser.role !== 'admin' && (
                     [
                       <MenuItem key="set-admin" onClick={handleSetAdmin}>
                         设为管理员 (开发)
