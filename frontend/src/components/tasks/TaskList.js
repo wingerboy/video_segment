@@ -32,7 +32,7 @@ import {
   Settings as ModelIcon,
   Assignment as TaskIcon
 } from '@mui/icons-material';
-import { getAllTasks, cancelTask } from '../../services/taskService';
+import { getAllTasks, cancelTask, restartTask } from '../../services/taskService';
 import { getFullUrl } from '../../services/videoService';
 import { API_URL } from '../../config';
 
@@ -67,7 +67,7 @@ const statusIcons = {
 };
 
 // 任务卡片组件
-const TaskCard = ({ task, onCancel, isCancelling, formatDate, onDownloadResult }) => {
+const TaskCard = ({ task, onCancel, isCancelling, onRestart, isRestarting, formatDate, onDownloadResult }) => {
   return (
     <Card 
       sx={{ 
@@ -146,6 +146,18 @@ const TaskCard = ({ task, onCancel, isCancelling, formatDate, onDownloadResult }
                 title="取消任务"
               >
                 {isCancelling ? <CircularProgress size={18} /> : <CancelIcon fontSize="small" />}
+              </IconButton>
+            )}
+            {task.taskStatus === 'failed' && (
+              <IconButton
+                size="small"
+                color="primary"
+                onClick={() => onRestart(task.id)}
+                disabled={isRestarting}
+                sx={{ mr: -1, mt: -1 }}
+                title="重新执行任务"
+              >
+                {isRestarting ? <CircularProgress size={18} /> : <RefreshIcon fontSize="small" />}
               </IconButton>
             )}
             <Chip
@@ -265,6 +277,7 @@ const TaskList = () => {
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [cancellingTaskId, setCancellingTaskId] = useState(null);
+  const [restartingTaskId, setRestartingTaskId] = useState(null);
   
   const navigate = useNavigate();
 
@@ -310,22 +323,28 @@ const TaskList = () => {
 
   // 取消任务
   const handleCancelTask = async (taskId) => {
+    if (!window.confirm('确定要停止该任务吗？')) return;
     try {
       setCancellingTaskId(taskId);
       await cancelTask(taskId);
-      
-      // 更新任务状态而不重新加载整个列表
-      setTasks(tasks.map(task => 
-        task.id === taskId 
-          ? { ...task, status: 'cancelled' } 
-          : task
-      ));
-      
-    } catch (error) {
-      console.error('取消任务失败:', error);
-      setError('取消任务失败: ' + (error.message || '未知错误'));
+      await fetchTasks();
+    } catch (err) {
+      setError(err.response?.data?.message || '取消任务失败');
     } finally {
       setCancellingTaskId(null);
+    }
+  };
+
+  const handleRestartTask = async (taskId) => {
+    if (!window.confirm('确定要重新执行该失败任务吗？')) return;
+    try {
+      setRestartingTaskId(taskId);
+      await restartTask(taskId);
+      await fetchTasks();
+    } catch (err) {
+      setError(err.response?.data?.message || '重启任务失败');
+    } finally {
+      setRestartingTaskId(null);
     }
   };
 
@@ -463,6 +482,8 @@ const TaskList = () => {
                   task={task} 
                   onCancel={handleCancelTask}
                   isCancelling={cancellingTaskId === task.id}
+                  onRestart={handleRestartTask}
+                  isRestarting={restartingTaskId === task.id}
                   formatDate={formatDate}
                   onDownloadResult={handleDownloadResult}
                 />

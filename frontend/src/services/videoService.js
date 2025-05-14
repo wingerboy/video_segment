@@ -1,6 +1,6 @@
 import axios from 'axios';
-import CryptoJS from 'crypto-js';
 import { API_BASE_URL, API_URL, AUTH_CONFIG } from '../config';
+import SparkMD5 from 'spark-md5';
 
 // 创建axios实例
 const api = axios.create({
@@ -96,20 +96,39 @@ export const getVideoById = async (id) => {
   }
 };
 
-// 计算文件MD5（用于检查是否已存在）
-export const calculateMD5 = async (file) => {
+// 计算文件MD5（分片，避免一次性加载超大文件导致内存溢出）
+export const calculateMD5 = async (file, progressCallback = null) => {
   return new Promise((resolve, reject) => {
+    const chunkSize = 2 * 1024 * 1024; // 2MB
+    const chunks = Math.ceil(file.size / chunkSize);
+    let currentChunk = 0;
+    const spark = new SparkMD5.ArrayBuffer();
     const reader = new FileReader();
+
     reader.onload = function (e) {
-      const buffer = e.target.result;
-      const wordArray = CryptoJS.lib.WordArray.create(buffer);
-      const hash = CryptoJS.MD5(wordArray).toString();
-      resolve(hash);
+      spark.append(e.target.result);
+      currentChunk++;
+      if (progressCallback) {
+        progressCallback(Math.round((currentChunk / chunks) * 100));
+      }
+      if (currentChunk < chunks) {
+        loadNext();
+      } else {
+        resolve(spark.end());
+      }
     };
+
     reader.onerror = function (e) {
       reject(e);
     };
-    reader.readAsArrayBuffer(file);
+
+    function loadNext() {
+      const start = currentChunk * chunkSize;
+      const end = Math.min(start + chunkSize, file.size);
+      reader.readAsArrayBuffer(file.slice(start, end));
+    }
+
+    loadNext();
   });
 };
 

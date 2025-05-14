@@ -159,7 +159,9 @@ const CreateTask = () => {
     try {
       const models = await getAvailableModels();
       // 过滤掉modelAlias为'default'的模型
-      const filteredModels = models.filter(model => model.modelAlias !== 'default');
+      const filteredModels = models
+        .filter(model => model.modelAlias !== 'default')
+        .sort((a, b) => (b.modelUsageCnt || 0) - (a.modelUsageCnt || 0));
       
       // 如果过滤后没有模型，显示错误
       if (filteredModels.length === 0) {
@@ -545,7 +547,12 @@ const CreateTask = () => {
               >
                 {availableModels.map((model) => (
                   <MenuItem key={model.modelAlias} value={model.modelAlias}>
-                    {model.modelAlias}
+                    <Box sx={{ display: 'flex', width: '100%', alignItems: 'center' }}>
+                      <Typography sx={{ flexGrow: 1 }}>{model.modelAlias}</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        {`${model.modelUsageCnt || 0}次使用`}
+                      </Typography>
+                    </Box>
                   </MenuItem>
                 ))}
               </Select>

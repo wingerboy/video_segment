@@ -100,7 +100,7 @@ ModelUsage.findByModelName = async function(modelName) {
 // 获取所有可用模型的别名和描述
 ModelUsage.getAvailableModels = async function() {
   return this.findAll({
-    attributes: ['modelName', 'modelAlias', 'modelDescription', 'pricePerFrame'],
+    attributes: ['modelName', 'modelAlias', 'modelDescription', 'pricePerFrame', 'modelUsageCnt'],
     order: [['modelUsageCnt', 'DESC']]
   });
 };

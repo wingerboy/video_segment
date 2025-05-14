@@ -298,6 +298,7 @@ router.delete('/cancel/:id', authenticate, async (req, res) => {
     }
     
     task.taskStatus = 'failed';
+    task.taskRespose = '用户主动终止任务';
     await task.save();
     
     res.status(200).json({ message: '任务已取消' });
@@ -308,6 +309,31 @@ router.delete('/cancel/:id', authenticate, async (req, res) => {
       stack: error.stack
     });
     res.status(500).json({ message: '取消任务失败', error: error.message });
+  }
+});
+
+// 重新执行失败任务
+router.post('/restart/:id', authenticate, async (req, res) => {
+  try {
+    const task = await Task.findOne({
+      where: {
+        id: req.params.id,
+        email: req.user.email,
+        taskStatus: 'failed'
+      }
+    });
+    if (!task) {
+      return res.status(404).json({ message: '任务不存在或无法重新执行' });
+    }
+    task.taskStatus = 'waiting';
+    task.taskProgress = 0;
+    task.taskRespose = '';
+    task.taskUpdateTime = new Date();
+    await task.save();
+    res.status(200).json({ message: '任务已重新加入队列' });
+  } catch (error) {
+    logger.error('任务重启失败:', { requestId: req.requestId, error: error.message, stack: error.stack });
+    res.status(500).json({ message: '任务重启失败', error: error.message });
   }
 });
 
@@ -452,7 +478,8 @@ router.get('/models', authenticate, async (req, res) => {
       models: models.map(model => ({
         modelAlias: model.modelAlias || model.modelName,
         modelDescription: model.modelDescription || '',
-        pricePerFrame: model.pricePerFrame || 0.01
+        pricePerFrame: model.pricePerFrame || 0.01,
+        modelUsageCnt: model.modelUsageCnt || 0
       }))
     });
   } catch (error) {

@@ -101,6 +101,19 @@ export const cancelTask = async (taskId) => {
 };
 
 /**
+ * 重新执行失败任务
+ */
+export const restartTask = async (taskId) => {
+  try {
+    const response = await api.post(`/tasks/restart/${taskId}`);
+    return response.data;
+  } catch (error) {
+    console.error('重启任务失败:', error);
+    throw error;
+  }
+};
+
+/**
  * 获取模型使用统计 (管理员)
  * @returns {Promise<Array>} 模型使用统计
  */
@@ -165,6 +178,7 @@ export default {
   getTaskStatus,
   getAllTasks,
   cancelTask,
+  restartTask,
   getModelUsageStats,
   getInterfaceUsageStats,
   getAvailableModels,
