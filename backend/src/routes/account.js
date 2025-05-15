@@ -4,6 +4,7 @@ const { rechargeAccount, consumeAccount, refundAccount, transferAccount, getUser
 const { authenticate, isAdmin, isAgent } = require('../middleware/auth');
 const { User } = require('../models');
 const { Op } = require('sequelize');
+const logger = require('../utils/logger');
 
 /**
  * @api {get} /account/transactions 获取用户交易记录
@@ -24,7 +25,7 @@ router.get('/transactions', authenticate, async (req, res) => {
       data: transactions
     });
   } catch (error) {
-    console.error('获取交易记录失败:', error);
+    logger.error('获取交易记录失败', { requestId: req.requestId, email: req.user?.email, error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
       message: error.message || '获取交易记录失败'
@@ -66,7 +67,7 @@ router.post('/recharge', authenticate, async (req, res) => {
       data: result
     });
   } catch (error) {
-    console.error('账户充值失败:', error);
+    logger.error('账户充值失败', { requestId: req.requestId, email: req.user?.email, error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
       message: error.message || '账户充值失败'
@@ -110,7 +111,7 @@ router.post('/consume', authenticate, async (req, res) => {
       data: result
     });
   } catch (error) {
-    console.error('账户消费失败:', error);
+    logger.error('账户消费失败', { requestId: req.requestId, email: req.user?.email, error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
       message: error.message || '账户消费失败'
@@ -154,7 +155,7 @@ router.post('/refund', authenticate, isAdmin, async (req, res) => {
       data: result
     });
   } catch (error) {
-    console.error('账户退款失败:', error);
+    logger.error('账户退款失败', { requestId: req.requestId, email: req.user?.email, error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
       message: error.message || '账户退款失败'
@@ -199,7 +200,7 @@ router.post('/transfer', authenticate, async (req, res) => {
       data: result
     });
   } catch (error) {
-    console.error('账户转账失败:', error);
+    logger.error('账户转账失败', { requestId: req.requestId, fromEmail: req.user?.email, toEmail: toEmail, amount: amount, error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
       message: error.message || '账户转账失败'
@@ -234,7 +235,7 @@ router.get('/admin/transactions/:email', authenticate, isAdmin, async (req, res)
       data: transactions
     });
   } catch (error) {
-    console.error('获取用户交易记录失败:', error);
+    logger.error('获取用户交易记录失败', { requestId: req.requestId, email: email, transactionType: transactionType, error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
       message: error.message || '获取用户交易记录失败'
@@ -283,7 +284,7 @@ router.get('/search-users', authenticate, isAgent, async (req, res) => {
       data: users
     });
   } catch (error) {
-    console.error('查找用户失败:', error);
+    logger.error('查找用户失败', { requestId: req.requestId, keyword: keyword, error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
       message: error.message || '查找用户失败'
@@ -309,7 +310,7 @@ router.get('/agent-transfers', authenticate, isAgent, async (req, res) => {
       data: transactions
     });
   } catch (error) {
-    console.error('获取划扣记录失败:', error);
+    logger.error('获取划扣记录失败', { requestId: req.requestId, email: req.user?.email, error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
       message: error.message || '获取划扣记录失败'
